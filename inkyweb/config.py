@@ -49,6 +49,7 @@ DEFAULT_STATE = {
     "last_source": None,
     "last_detail": None,
     "last_error": None,
+    "preview_rotated": False,
     "busy": False,
 }
 

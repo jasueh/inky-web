@@ -16,7 +16,15 @@
   <section class="card" id="status-card">
     <h2>En pantalla</h2>
     <div class="status-grid">
-      <img id="preview" alt="Vista previa de la pantalla">
+      <div>
+        <div id="preview-box" class="preview-box"><img id="preview" alt="Vista previa de la pantalla"></div>
+        <div class="row preview-tools">
+          <button type="button" id="rot-left" title="Girar vista previa a la izquierda">⟲</button>
+          <button type="button" id="rot-right" title="Girar vista previa a la derecha">⟳</button>
+          <button type="button" id="rot-reset" title="Volver a la orientación automática">Auto</button>
+          <small>Solo gira la vista previa, no la pantalla.</small>
+        </div>
+      </div>
       <dl>
         <dt>Modo</dt><dd id="st-mode">—</dd>
         <dt>Mostrando</dt><dd id="st-detail">—</dd>

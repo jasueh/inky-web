@@ -92,8 +92,10 @@ class Scheduler:
             if img is None:
                 config.update_state(last_error=None)
                 return
-            display.show(img, cfg["display"])
-            config.update_state(last_refresh=_now(), last_source=source, last_detail=detail, last_error=None)
+            rotated = display.show(img, cfg["display"])
+            config.update_state(
+                last_refresh=_now(), last_source=source, last_detail=detail, last_error=None, preview_rotated=rotated
+            )
         except Exception as e:
             log.exception("Refresh failed")
             config.update_state(last_error=f"{_now()}: {e}")

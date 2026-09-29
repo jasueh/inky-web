@@ -44,11 +44,16 @@ def resolution():
 
 
 def prepare(img, opts):
-    """Fit an image to the panel keeping its aspect ratio and boost colours."""
+    """Fit an image to the panel keeping its aspect ratio and boost colours.
+
+    Returns (image, rotated) where rotated tells whether it was turned 90° CCW
+    to match the panel orientation.
+    """
     w, h = resolution()
     img = ImageOps.exif_transpose(img).convert("RGB")
 
-    if opts.get("auto_rotate", True) and (img.height > img.width) != (h > w):
+    rotated = opts.get("auto_rotate", True) and (img.height > img.width) != (h > w)
+    if rotated:
         img = img.rotate(90, expand=True)
 
     if opts.get("fit") == "fit":
@@ -60,12 +65,15 @@ def prepare(img, opts):
     img = ImageEnhance.Color(img).enhance(float(opts.get("color", 1.0)))
     img = ImageEnhance.Contrast(img).enhance(float(opts.get("contrast", 1.0)))
     img = ImageEnhance.Brightness(img).enhance(float(opts.get("brightness", 1.0)))
-    return img
+    return img, rotated
 
 
 def show(img, opts):
-    """Prepare and push an image to the panel. Blocks for the full refresh."""
-    img = prepare(img, opts)
+    """Prepare and push an image to the panel. Blocks for the full refresh.
+
+    Returns whether the image was auto-rotated.
+    """
+    img, rotated = prepare(img, opts)
     with _display_lock:
         img.save(config.PREVIEW_FILE)
         d = _get_display()
@@ -74,3 +82,4 @@ def show(img, opts):
             d.show()
         else:
             log.info("Mock display: preview written to %s", config.PREVIEW_FILE)
+    return rotated

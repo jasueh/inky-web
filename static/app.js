@@ -54,6 +54,7 @@ function render(next) {
     $("preview").dataset.ts = ts;
     if (ts) $("preview").src = `/preview.png?t=${encodeURIComponent(ts)}`;
   }
+  applyPreviewRotation();
 
   // mode
   document.querySelector(`input[name=mode][value=${cfg.mode}]`).checked = true;
@@ -120,6 +121,43 @@ function render(next) {
   }
 }
 
+// ---------- preview rotation (UI only) ----------
+// The panel buffer is landscape; images auto-rotated 90° CCW to fit are turned
+// back here. The manual offset compensates for how the panel is mounted and is
+// remembered per browser.
+
+function loadRotOffset() {
+  try {
+    return parseInt(localStorage.getItem("previewRotOffset"), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+let rotOffset = loadRotOffset();
+
+function setRotOffset(deg) {
+  rotOffset = ((deg % 360) + 360) % 360;
+  try {
+    localStorage.setItem("previewRotOffset", rotOffset);
+  } catch {}
+  applyPreviewRotation();
+}
+
+function applyPreviewRotation() {
+  if (!data) return;
+  const [w, h] = data.resolution;
+  const auto = data.state.preview_rotated ? 90 : 0;
+  const rot = (auto + rotOffset) % 360;
+  const box = $("preview-box");
+  box.style.setProperty("--pw", w);
+  box.style.setProperty("--ph", h);
+  box.style.setProperty("--inv", h / w);
+  box.classList.toggle("quarter", rot % 180 !== 0);
+  $("preview").style.setProperty("--rot", `${rot}deg`);
+  $("rot-reset").disabled = rotOffset === 0;
+}
+
 function toggleGallery(name, on) {
   const set = new Set(data.config.gallery.images);
   on ? set.add(name) : set.delete(name);
@@ -129,6 +167,9 @@ function toggleGallery(name, on) {
 // ---------- events ----------
 
 $("btn-refresh").addEventListener("click", async () => render(await api("POST", "/api/refresh")));
+$("rot-left").addEventListener("click", () => setRotOffset(rotOffset - 90));
+$("rot-right").addEventListener("click", () => setRotOffset(rotOffset + 90));
+$("rot-reset").addEventListener("click", () => setRotOffset(0));
 
 document.querySelectorAll("input[name=mode]").forEach((el) =>
   el.addEventListener("change", () => saveConfig({ mode: el.value })));
