@@ -57,11 +57,17 @@ button {
   font: inherit; color: inherit; background: var(--chip);
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
 }
-a.button {
-  color: inherit; background: var(--chip); text-decoration: none;
+a.button, label.button {
+  color: inherit; background: var(--chip); text-decoration: none; cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px;
 }
 a.button[hidden] { display: none; }
+
+.lang-switch { margin-left: auto; display: flex; }
+.lang-switch button { padding: 4px 10px; font-size: 0.85rem; }
+.lang-switch button:first-child { border-radius: 6px 0 0 6px; }
+.lang-switch button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.lang-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 button.danger { color: var(--danger); }
 button:disabled { opacity: 0.5; cursor: default; }

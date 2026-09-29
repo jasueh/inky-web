@@ -9,146 +9,155 @@
 <body>
 <header>
   <h1>Inky Web</h1>
-  <span id="busy" class="badge" hidden>Actualizando pantalla…</span>
+  <span id="busy" class="badge" data-i18n="header.busy" hidden></span>
+  <div class="lang-switch" role="group" data-i18n-title="lang.title">
+    <button type="button" data-lang="es">ES</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
 </header>
 
 <main>
   <section class="card" id="status-card">
-    <h2>En pantalla</h2>
+    <h2 data-i18n="status.title"></h2>
     <div class="status-grid">
       <div>
-        <div id="preview-box" class="preview-box"><img id="preview" alt="Vista previa de la pantalla"></div>
+        <div id="preview-box" class="preview-box"><img id="preview" data-i18n-alt="status.previewAlt"></div>
         <div class="row preview-tools">
-          <button type="button" id="rot-left" title="Girar vista previa a la izquierda">⟲</button>
-          <button type="button" id="rot-right" title="Girar vista previa a la derecha">⟳</button>
-          <button type="button" id="rot-reset" title="Volver a la orientación automática">Auto</button>
-          <small>Solo gira la vista previa, no la pantalla.</small>
+          <button type="button" id="rot-left" data-i18n-title="status.rotLeft">⟲</button>
+          <button type="button" id="rot-right" data-i18n-title="status.rotRight">⟳</button>
+          <button type="button" id="rot-reset" data-i18n-title="status.rotReset">Auto</button>
+          <small data-i18n="status.rotHint"></small>
         </div>
       </div>
       <dl>
-        <dt>Modo</dt><dd id="st-mode">—</dd>
-        <dt>Mostrando</dt><dd id="st-detail">—</dd>
-        <dt>Último refresco</dt><dd id="st-last">—</dd>
-        <dt>Próximo refresco</dt><dd id="st-next">—</dd>
-        <dt>Resolución</dt><dd id="st-res">—</dd>
+        <dt data-i18n="status.mode"></dt><dd id="st-mode">—</dd>
+        <dt data-i18n="status.showing"></dt><dd id="st-detail">—</dd>
+        <dt data-i18n="status.last"></dt><dd id="st-last">—</dd>
+        <dt data-i18n="status.next"></dt><dd id="st-next">—</dd>
+        <dt data-i18n="status.resolution"></dt><dd id="st-res">—</dd>
       </dl>
     </div>
     <p id="st-error" class="error" hidden></p>
     <div class="row">
-      <button id="btn-refresh" class="primary">Refrescar ahora</button>
-      <button type="button" id="btn-save-current" hidden>Guardar en galería</button>
-      <a id="btn-download" class="button" hidden download>Descargar</a>
+      <button id="btn-refresh" class="primary" data-i18n="status.refresh"></button>
+      <button type="button" id="btn-save-current" hidden></button>
+      <a id="btn-download" class="button" data-i18n="status.download" hidden download></a>
       <small id="current-msg"></small>
     </div>
   </section>
 
   <section class="card">
-    <h2>Modo</h2>
+    <h2 data-i18n="mode.title"></h2>
     <div class="segmented" id="mode">
-      <label><input type="radio" name="mode" value="single"> Imagen única</label>
-      <label><input type="radio" name="mode" value="gallery"> Galería</label>
-      <label><input type="radio" name="mode" value="comics"> Cómics random</label>
+      <label><input type="radio" name="mode" value="single"> <span data-i18n="mode.single"></span></label>
+      <label><input type="radio" name="mode" value="gallery"> <span data-i18n="mode.gallery"></span></label>
+      <label><input type="radio" name="mode" value="comics"> <span data-i18n="mode.comics"></span></label>
     </div>
     <label class="row">
-      Cambiar cada
-      <input type="number" id="interval" min="2" step="1"> minutos
+      <span data-i18n="mode.every"></span>
+      <input type="number" id="interval" min="2" step="1"> <span data-i18n="mode.minutes"></span>
       <small id="interval-hint"></small>
     </label>
-    <p class="hint">La frecuencia aplica a Galería y Cómics. En Imagen única la pantalla no rota.</p>
+    <p class="hint" data-i18n="mode.hint"></p>
     <label class="row">
-      <input type="checkbox" id="refresh-on-start"> Refrescar al iniciar la app
-      <small>(apagado: la pantalla conserva la imagen y no se llama a Comic Vine al arrancar)</small>
+      <input type="checkbox" id="refresh-on-start"> <span data-i18n="mode.refreshOnStart"></span>
+      <small data-i18n="mode.refreshOnStartHint"></small>
     </label>
     <div class="row">
-      <button type="button" id="mode-apply" class="primary" disabled>Aplicar</button>
-      <button type="button" id="mode-discard" disabled>Descartar</button>
-      <small id="mode-pending" class="pending" hidden>Cambios sin aplicar</small>
+      <button type="button" id="mode-apply" class="primary" data-i18n="common.apply" disabled></button>
+      <button type="button" id="mode-discard" data-i18n="common.discard" disabled></button>
+      <small id="mode-pending" class="pending" data-i18n="common.pending" hidden></small>
     </div>
   </section>
 
   <section class="card">
-    <h2>Imágenes</h2>
-    <form id="upload-form">
-      <input type="file" id="files" name="files" accept="image/*" multiple>
-      <button type="submit">Subir</button>
+    <h2 data-i18n="images.title"></h2>
+    <form id="upload-form" class="row">
+      <label class="button">
+        <input type="file" id="files" name="files" accept="image/*" multiple hidden>
+        <span data-i18n="images.choose"></span>
+      </label>
+      <small id="files-chosen"></small>
+      <button type="submit" data-i18n="images.upload"></button>
       <span id="upload-msg" class="hint"></span>
     </form>
     <label class="row">
-      Orden de la galería
+      <span data-i18n="images.order"></span>
       <select id="gallery-order">
-        <option value="random">Aleatorio</option>
-        <option value="sequential">Secuencial</option>
+        <option value="random" data-i18n="images.random"></option>
+        <option value="sequential" data-i18n="images.sequential"></option>
       </select>
     </label>
     <div class="row">
-      <button type="button" id="gallery-all">Todas en galería</button>
-      <button type="button" id="gallery-none">Ninguna</button>
+      <button type="button" id="gallery-all" data-i18n="images.all"></button>
+      <button type="button" id="gallery-none" data-i18n="images.none"></button>
     </div>
     <div id="images" class="grid"></div>
-    <p id="images-empty" class="hint" hidden>Todavía no hay imágenes.</p>
+    <p id="images-empty" class="hint" data-i18n="images.empty" hidden></p>
   </section>
 
   <section class="card">
-    <h2>Cómics (Comic Vine)</h2>
+    <h2 data-i18n="comics.title"></h2>
     <label class="row">
-      API key
-      <input type="password" id="api-key" autocomplete="off" placeholder="sin configurar">
-      <button type="button" id="save-key">Guardar</button>
+      <span data-i18n="comics.apiKey"></span>
+      <input type="password" id="api-key" autocomplete="off">
+      <button type="button" id="save-key" data-i18n="comics.save"></button>
     </label>
     <label class="row">
-      <input type="checkbox" id="random-volume"> Volumen aleatorio (entre los 5 primeros resultados)
+      <input type="checkbox" id="random-volume"> <span data-i18n="comics.randomVolume"></span>
     </label>
-    <h3>Búsquedas</h3>
+    <h3 data-i18n="comics.searches"></h3>
     <ul id="queries" class="chips"></ul>
     <form id="query-form" class="row">
-      <input type="text" id="query-input" placeholder="Ej: Weird Science">
-      <button type="submit">Agregar</button>
+      <input type="text" id="query-input" data-i18n-placeholder="comics.queryPlaceholder">
+      <button type="submit" data-i18n="comics.add"></button>
     </form>
   </section>
 
   <section class="card">
-    <h2>Pantalla</h2>
+    <h2 data-i18n="display.title"></h2>
     <label class="row">
-      Ajuste
+      <span data-i18n="display.fit"></span>
       <select id="fit">
-        <option value="contain">Completa (bordes)</option>
-        <option value="fit">Llenar (recortar)</option>
+        <option value="contain" data-i18n="display.contain"></option>
+        <option value="fit" data-i18n="display.fill"></option>
       </select>
     </label>
     <label class="row">
-      Color de bordes
+      <span data-i18n="display.border"></span>
       <select id="border">
-        <option value="white">Blanco</option>
-        <option value="black">Negro</option>
+        <option value="white" data-i18n="display.white"></option>
+        <option value="black" data-i18n="display.black"></option>
       </select>
     </label>
-    <label class="row"><input type="checkbox" id="auto-rotate"> Rotar imágenes verticales</label>
+    <label class="row"><input type="checkbox" id="auto-rotate"> <span data-i18n="display.autoRotate"></span></label>
     <div class="sliders">
-      <label>Saturación de color <input type="range" id="color" min="0" max="3" step="0.1"><output></output></label>
-      <label>Contraste <input type="range" id="contrast" min="0" max="3" step="0.1"><output></output></label>
-      <label>Brillo <input type="range" id="brightness" min="0" max="3" step="0.05"><output></output></label>
-      <label>Paleta Inky (saturation) <input type="range" id="saturation" min="0" max="1" step="0.05"><output></output></label>
+      <label><span data-i18n="display.color"></span> <input type="range" id="color" min="0" max="3" step="0.1"><output></output></label>
+      <label><span data-i18n="display.contrast"></span> <input type="range" id="contrast" min="0" max="3" step="0.1"><output></output></label>
+      <label><span data-i18n="display.brightness"></span> <input type="range" id="brightness" min="0" max="3" step="0.05"><output></output></label>
+      <label><span data-i18n="display.saturation"></span> <input type="range" id="saturation" min="0" max="1" step="0.05"><output></output></label>
     </div>
-    <p class="hint">Aplicar vuelve a dibujar la imagen que está en pantalla con estos valores, para comparar. No cambia el horario de rotación.</p>
+    <p class="hint" data-i18n="display.hint"></p>
     <div class="row">
-      <button type="button" id="display-apply" class="primary" disabled>Aplicar</button>
-      <button type="button" id="display-discard" disabled>Descartar</button>
-      <button type="button" id="display-defaults" title="Sin realce: color, contraste y brillo 1.0, paleta 0.5 (default de la librería inky)">Valores de Pimoroni</button>
-      <small id="display-pending" class="pending" hidden>Cambios sin aplicar</small>
+      <button type="button" id="display-apply" class="primary" data-i18n="common.apply" disabled></button>
+      <button type="button" id="display-discard" data-i18n="common.discard" disabled></button>
+      <button type="button" id="display-defaults" data-i18n="display.defaults" data-i18n-title="display.defaultsTitle"></button>
+      <small id="display-pending" class="pending" data-i18n="common.pending" hidden></small>
     </div>
 
-    <h3>Perfiles</h3>
-    <p class="hint">Guardan color, contraste, brillo y paleta. Cargar un perfil lo deja pendiente: después Aplicar.</p>
+    <h3 data-i18n="presets.title"></h3>
+    <p class="hint" data-i18n="presets.hint"></p>
     <ul id="presets" class="presets"></ul>
-    <p id="presets-empty" class="hint" hidden>Todavía no hay perfiles guardados.</p>
+    <p id="presets-empty" class="hint" data-i18n="presets.empty" hidden></p>
     <form id="preset-form" class="row">
-      <input type="text" id="preset-name" maxlength="40" placeholder="Nombre del perfil (ej: Phantom)">
-      <button type="submit">Guardar valores actuales</button>
+      <input type="text" id="preset-name" maxlength="40" data-i18n-placeholder="presets.namePlaceholder">
+      <button type="submit" data-i18n="presets.save"></button>
       <small id="preset-msg"></small>
     </form>
   </section>
 </main>
 
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

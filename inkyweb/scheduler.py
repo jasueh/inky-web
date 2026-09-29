@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from PIL import Image, ImageOps
 
 from . import comics, config, display
+from .errors import UserError
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ class Scheduler:
 
         def run():
             if not config.SOURCE_FILE.exists():
-                raise ValueError("No hay imagen actual para redibujar; esperá al próximo refresco")
+                raise UserError("no_redraw_source", "No current image to redraw; wait for the next refresh")
             with Image.open(config.SOURCE_FILE) as img:
                 img.load()
                 rotated = display.show(img, cfg["display"])
@@ -148,7 +149,10 @@ class Scheduler:
             config.update_state(last_error=None)
         except Exception as e:
             log.exception("%s failed", what)
-            config.update_state(last_error=f"{_now()}: {e}")
+            # Coded errors are translated by the UI; anything else (network,
+            # HTTP...) is shown with its original message.
+            err = e.to_dict() if isinstance(e, UserError) else {"code": None, "params": {}, "message": str(e)}
+            config.update_state(last_error={"at": _now(), **err})
         finally:
             config.update_state(busy=False)
             self._refresh_lock.release()
@@ -168,7 +172,7 @@ class Scheduler:
         # gallery
         names = [n for n in cfg["gallery"]["images"] if (config.IMAGES_DIR / n).exists()]
         if not names:
-            raise ValueError("Gallery is empty")
+            raise UserError("gallery_empty", "The gallery is empty")
         state = config.load_state()
         if cfg["gallery"]["order"] == "sequential":
             idx = state["gallery_index"] % len(names)

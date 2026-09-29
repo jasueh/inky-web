@@ -1,5 +1,4 @@
 const $ = (id) => document.getElementById(id);
-const MODE_LABELS = { single: "Imagen única", gallery: "Galería", comics: "Cómics random" };
 const SLIDERS = ["color", "contrast", "brightness", "saturation"];
 
 let data = null;
@@ -27,8 +26,10 @@ async function api(method, url, body) {
   }
   const res = await fetch(url, opts);
   if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.error || `${res.status} ${res.statusText}`);
+    const body = await res.json().catch(() => null);
+    const err = new Error(body?.error?.message || `${res.status} ${res.statusText}`);
+    err.data = body?.error; // {code, params, message}
+    throw err;
   }
   return res.json();
 }
@@ -37,7 +38,15 @@ const saveConfig = async (patch) => render(await api("POST", "/api/config", patc
 
 function fmtTime(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString(lang);
+}
+
+const errText = (err) => (err.data ? tErr(err.data) : err.message);
+
+function lastErrorText(e) {
+  if (!e) return "";
+  if (typeof e === "string") return e; // saved by an older version
+  return `${fmtTime(e.at)}: ${tErr(e)}`;
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -59,13 +68,13 @@ function render(next) {
   // status
   $("busy").hidden = !state.busy;
   $("btn-refresh").disabled = state.busy;
-  $("st-mode").textContent = MODE_LABELS[cfg.mode];
+  $("st-mode").textContent = t(`mode.${cfg.mode}`);
   $("st-detail").innerHTML = describe(state);
   $("st-last").textContent = fmtTime(state.last_refresh);
   $("st-next").textContent = state.next_refresh ? fmtTime(state.next_refresh) : "—";
   $("st-res").textContent = data.resolution.join("×");
   $("st-error").hidden = !state.last_error;
-  $("st-error").textContent = state.last_error || "";
+  $("st-error").textContent = lastErrorText(state.last_error);
   const ts = state.rendered_at || state.last_refresh || "";
   if (ts !== $("preview").dataset.ts) {
     $("preview").dataset.ts = ts;
@@ -78,7 +87,7 @@ function render(next) {
   const isComic = state.last_source === "comics" && state.has_source;
   $("btn-save-current").hidden = !isComic;
   $("btn-save-current").disabled = state.saved || state.busy;
-  $("btn-save-current").textContent = state.saved ? "Guardada ✓" : "Guardar en galería";
+  $("btn-save-current").textContent = t(state.saved ? "status.saved" : "status.save");
   $("btn-download").hidden = !state.has_source || state.busy;
   $("btn-download").href = `/current/download?t=${encodeURIComponent(ts)}`;
 
@@ -90,7 +99,7 @@ function render(next) {
     $("refresh-on-start").checked = cfg.refresh_on_start;
   }
   $("interval").min = data.min_interval;
-  $("interval-hint").textContent = `(mínimo ${data.min_interval})`;
+  $("interval-hint").textContent = t("mode.min", { n: data.min_interval });
   $("mode-apply").disabled = !modeDirty;
   $("mode-discard").disabled = !modeDirty;
   $("mode-pending").hidden = !modeDirty;
@@ -107,24 +116,24 @@ function render(next) {
         <a href="/images/${encodeURIComponent(img.name)}" target="_blank"><img loading="lazy" src="${img.thumb}" alt=""></a>
         <div class="meta">
           <span class="name" title="${img.name}">${img.name}</span>
-          <label><input type="checkbox" ${inGallery.has(img.name) ? "checked" : ""}> En galería</label>
+          <label><input type="checkbox" ${inGallery.has(img.name) ? "checked" : ""}> ${esc(t("images.inGallery"))}</label>
           <div class="actions">
-            <button type="button" data-act="show">Mostrar</button>
-            <button type="button" data-act="delete" class="danger">Borrar</button>
+            <button type="button" data-act="show">${esc(t("images.show"))}</button>
+            <button type="button" data-act="delete" class="danger">${esc(t("images.delete"))}</button>
           </div>
         </div>`;
       tile.querySelector("input").addEventListener("change", (e) => toggleGallery(img.name, e.target.checked));
       tile.querySelector("[data-act=show]").addEventListener("click", async () =>
         render(await api("POST", `/api/images/${encodeURIComponent(img.name)}/show`)));
       tile.querySelector("[data-act=delete]").addEventListener("click", async () => {
-        if (confirm(`¿Borrar ${img.name}?`)) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
+        if (confirm(t("images.confirmDelete", { name: img.name }))) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
       });
       return tile;
     })
   );
 
   // comics
-  $("api-key").placeholder = cfg.comics.api_key_set ? `configurada (${cfg.comics.api_key_hint})` : "sin configurar";
+  $("api-key").placeholder = cfg.comics.api_key_set ? t("comics.keySet", { hint: cfg.comics.api_key_hint }) : t("comics.keyUnset");
   $("random-volume").checked = cfg.comics.random_volume;
   $("queries").replaceChildren(
     ...cfg.comics.queries.map((q, i) => {
@@ -132,7 +141,7 @@ function render(next) {
       li.textContent = q;
       const b = document.createElement("button");
       b.type = "button";
-      b.title = "Quitar";
+      b.title = t("comics.remove");
       b.textContent = "×";
       b.addEventListener("click", () => {
         const queries = cfg.comics.queries.filter((_, j) => j !== i);
@@ -165,13 +174,17 @@ function renderPresets(presets) {
       const li = document.createElement("li");
       li.innerHTML = `
         <span class="preset-name"></span>
-        <span class="preset-values">color ${p.color.toFixed(2)} · contraste ${p.contrast.toFixed(2)} · brillo ${p.brightness.toFixed(2)} · paleta ${p.saturation.toFixed(2)}</span>
-        <button type="button" data-act="load">Cargar</button>
-        <button type="button" data-act="delete" class="danger" title="Borrar perfil">×</button>`;
+        <span class="preset-values"></span>
+        <button type="button" data-act="load"></button>
+        <button type="button" data-act="delete" class="danger">×</button>`;
+      const fixed = Object.fromEntries(SLIDERS.map((k) => [k, p[k].toFixed(2)]));
+      li.querySelector(".preset-values").textContent = t("presets.values", fixed);
+      li.querySelector("[data-act=load]").textContent = t("presets.load");
+      li.querySelector("[data-act=delete]").title = t("presets.deleteTitle");
       li.querySelector(".preset-name").textContent = name;
       li.querySelector("[data-act=load]").addEventListener("click", () => loadIntoForm(p));
       li.querySelector("[data-act=delete]").addEventListener("click", async () => {
-        if (confirm(`¿Borrar el perfil "${name}"?`))
+        if (confirm(t("presets.confirmDelete", { name })))
           render(await api("DELETE", `/api/presets/${encodeURIComponent(name)}`));
       });
       return li;
@@ -260,9 +273,9 @@ $("btn-save-current").addEventListener("click", async () => {
   $("current-msg").textContent = "";
   try {
     render(await api("POST", "/api/current/save", { last_refresh: data.state.last_refresh }));
-    $("current-msg").textContent = "Guardada en la galería";
+    $("current-msg").textContent = t("status.savedMsg");
   } catch (err) {
-    $("current-msg").textContent = err.message;
+    $("current-msg").textContent = errText(err);
   }
 });
 $("rot-left").addEventListener("click", () => setRotOffset(rotOffset - 90));
@@ -290,14 +303,17 @@ $("upload-form").addEventListener("submit", async (e) => {
   if (!files.length) return;
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
-  $("upload-msg").textContent = "Subiendo…";
+  $("upload-msg").textContent = t("images.uploading");
   try {
     const res = await api("POST", "/api/images", fd);
-    $("upload-msg").textContent = `${res.saved.length} subida(s)` + (res.errors.length ? ` · errores: ${res.errors.join("; ")}` : "");
+    $("upload-msg").textContent =
+      t("images.uploaded", { n: res.saved.length }) +
+      (res.errors.length ? " · " + t("images.uploadErrors", { list: res.errors.map(tErr).join("; ") }) : "");
     $("files").value = "";
+    updateChosen();
     render(await api("GET", "/api/status"));
   } catch (err) {
-    $("upload-msg").textContent = `Error: ${err.message}`;
+    $("upload-msg").textContent = `Error: ${errText(err)}`;
   }
 });
 
@@ -346,17 +362,36 @@ $("preset-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = $("preset-name").value.trim();
   if (!name) return;
-  if (name in data.config.display_presets && !confirm(`Ya existe "${name}". ¿Sobrescribirlo?`)) return;
+  if (name in data.config.display_presets && !confirm(t("presets.confirmOverwrite", { name }))) return;
   const form = readDisplayForm();
   const values = Object.fromEntries(SLIDERS.map((k) => [k, form[k]]));
   try {
     render(await api("POST", "/api/presets", { name, values }));
     $("preset-name").value = "";
-    $("preset-msg").textContent = `Perfil "${name}" guardado`;
+    $("preset-msg").textContent = t("presets.saved", { name });
   } catch (err) {
-    $("preset-msg").textContent = err.message;
+    $("preset-msg").textContent = errText(err);
   }
 });
+
+function updateChosen() {
+  const n = $("files").files.length;
+  $("files-chosen").textContent = n ? t("images.chosen", { n }) : t("images.noneChosen");
+}
+$("files").addEventListener("change", updateChosen);
+
+for (const b of document.querySelectorAll("[data-lang]")) {
+  b.addEventListener("click", () => {
+    setLang(b.dataset.lang);
+    // messages from earlier actions were written in the old language
+    for (const id of ["current-msg", "upload-msg", "preset-msg"]) $(id).textContent = "";
+    updateChosen();
+    if (data) render(data);
+  });
+}
+
+applyStaticI18n();
+updateChosen();
 
 // ---------- polling ----------
 

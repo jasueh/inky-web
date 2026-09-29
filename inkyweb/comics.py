@@ -11,6 +11,8 @@ from io import BytesIO
 import requests
 from PIL import Image
 
+from .errors import UserError
+
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://comicvine.gamespot.com/api/"
@@ -24,7 +26,7 @@ def find_volume(api_key, query, random_volume):
     r.raise_for_status()
     results = r.json().get("results", [])
     if not results:
-        raise ValueError(f"No volumes found for '{query}'")
+        raise UserError("no_volumes", "No volumes found for '{query}'", query=query)
     return random.choice(results) if random_volume else results[0]
 
 
@@ -34,7 +36,7 @@ def random_issue(api_key, volume_id):
     r.raise_for_status()
     results = r.json().get("results", [])
     if not results:
-        raise ValueError(f"No issues found for volume {volume_id}")
+        raise UserError("no_issues", "No issues found for volume {volume}", volume=volume_id)
     return random.choice(results)
 
 
@@ -43,9 +45,9 @@ def fetch_random_cover(comics_cfg):
     api_key = comics_cfg.get("api_key", "").strip()
     queries = [q for q in comics_cfg.get("queries", []) if q.strip()]
     if not api_key:
-        raise ValueError("Comic Vine API key is not set")
+        raise UserError("api_key_missing", "Comic Vine API key is not set")
     if not queries:
-        raise ValueError("No search queries configured")
+        raise UserError("no_queries", "No search queries configured")
 
     query = random.choice(queries)
     volume = find_volume(api_key, query, comics_cfg.get("random_volume", False))

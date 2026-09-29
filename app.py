@@ -12,6 +12,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 from inkyweb import config, display
+from inkyweb.errors import UserError
 from inkyweb.scheduler import Scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -29,10 +30,15 @@ config.ensure_dirs()
 scheduler = Scheduler()
 
 
+@app.errorhandler(UserError)
+def user_error(e):
+    return jsonify(error=e.to_dict()), e.status
+
+
 @app.errorhandler(HTTPException)
 def api_error(e):
     if request.path.startswith("/api/"):
-        return jsonify(error=e.description), e.code
+        return jsonify(error={"code": f"http_{e.code}", "params": {}, "message": e.description}), e.code
     return e
 
 
@@ -146,7 +152,7 @@ def update_config():
 
     if "mode" in data:
         if data["mode"] not in config.MODES:
-            abort(400, "invalid mode")
+            raise UserError("invalid_mode", "Invalid mode")
         cfg["mode"] = data["mode"]
 
     if "interval_minutes" in data:
@@ -158,7 +164,7 @@ def update_config():
     if "single_image" in data:
         name = data["single_image"]
         if name is not None and not valid_image_name(name):
-            abort(400, "unknown image")
+            raise UserError("unknown_image", "Unknown image")
         cfg["single_image"] = name
 
     if "gallery" in data:
@@ -210,12 +216,12 @@ def save_preset():
     body = request.get_json(force=True) or {}
     name = str(body.get("name") or "").strip()
     if not name or len(name) > config.PRESET_NAME_MAX:
-        abort(400, f"El nombre debe tener entre 1 y {config.PRESET_NAME_MAX} caracteres")
+        raise UserError("preset_name", "The name must be 1 to {max} characters long", max=config.PRESET_NAME_MAX)
     values = body.get("values") or {}
     try:
         preset = {k: clamp(values[k], lo, hi) for k, (lo, hi) in config.ADJUSTMENTS.items()}
     except (KeyError, TypeError, ValueError):
-        abort(400, "Faltan valores o no son números")
+        raise UserError("preset_values", "Missing or non-numeric values")
     cfg = config.load_config()
     cfg["display_presets"][name] = preset
     config.save_config(cfg)
@@ -226,7 +232,7 @@ def save_preset():
 def delete_preset(name):
     cfg = config.load_config()
     if cfg["display_presets"].pop(name, None) is None:
-        abort(404, "Perfil inexistente")
+        raise UserError("preset_not_found", "Preset not found", status=404)
     config.save_config(cfg)
     return status()
 
@@ -248,7 +254,7 @@ def download_current():
     if not config.SOURCE_FILE.exists():
         abort(404)
     if scheduler.busy:
-        abort(409, "La pantalla se está actualizando; esperá a que termine")
+        raise UserError("panel_busy", "The display is updating; wait for it to finish", status=409)
     buf = BytesIO()
     with Image.open(config.SOURCE_FILE) as img:
         img.convert("RGB").save(buf, "JPEG", quality=95)
@@ -262,15 +268,15 @@ def save_current():
     """Save the comic cover on screen into the image library and gallery."""
     body = request.get_json(silent=True) or {}
     if scheduler.busy:  # current_source.png may already hold the next image
-        abort(409, "La pantalla se está actualizando; esperá a que termine")
+        raise UserError("panel_busy", "The display is updating; wait for it to finish", status=409)
     state = config.load_state()
     if state.get("last_source") != "comics":
-        abort(400, "Solo se pueden guardar portadas de cómics")
+        raise UserError("not_a_comic", "Only comic covers can be saved")
     # Guard against a rotation between what the user saw and this request.
     if body.get("last_refresh") != state.get("last_refresh"):
-        abort(409, "La imagen en pantalla cambió; revisá y volvé a intentar")
+        raise UserError("image_changed", "The image on screen changed; check and try again", status=409)
     if not config.SOURCE_FILE.exists():
-        abort(404, "No hay imagen actual guardada")
+        raise UserError("no_current_image", "No current image saved", status=404)
 
     detail = state.get("last_detail") or {}
     if detail.get("saved_as") and valid_image_name(detail["saved_as"]):
@@ -297,7 +303,7 @@ def upload():
         if not f.filename:
             continue
         if Path(f.filename).suffix.lower() not in ALLOWED_EXT:
-            errors.append(f"{f.filename}: unsupported type")
+            errors.append(UserError("unsupported_type", "{file}: unsupported type", file=f.filename).to_dict())
             continue
         name = unique_name(f.filename)
         path = config.IMAGES_DIR / name
@@ -307,7 +313,7 @@ def upload():
             saved.append(name)
         except (UnidentifiedImageError, OSError) as e:
             path.unlink(missing_ok=True)
-            errors.append(f"{f.filename}: {e}")
+            errors.append(UserError("invalid_image", "{file}: not a valid image ({detail})", file=f.filename, detail=str(e)).to_dict())
     log.info("Uploaded %s", saved)
     return jsonify(saved=saved, errors=errors)
 
@@ -315,7 +321,7 @@ def upload():
 @app.delete("/api/images/<name>")
 def delete_image(name):
     if not valid_image_name(name):
-        abort(404)
+        raise UserError("unknown_image", "Unknown image", status=404)
     (config.IMAGES_DIR / name).unlink()
     (config.THUMBS_DIR / thumb_name(name)).unlink(missing_ok=True)
 
@@ -330,7 +336,7 @@ def delete_image(name):
 @app.post("/api/images/<name>/show")
 def show_image(name):
     if not valid_image_name(name):
-        abort(404)
+        raise UserError("unknown_image", "Unknown image", status=404)
     cfg = config.load_config()
     cfg["mode"] = "single"
     cfg["single_image"] = name

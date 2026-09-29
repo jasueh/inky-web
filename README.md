@@ -12,6 +12,8 @@ Web UI ligera para controlar una **Pimoroni Inky Impression 13.3"** (Spectra 6, 
 - Ajuste de pantalla: mantener aspect ratio con bordes o recortar, rotación automática de imágenes verticales, realce de color/contraste/brillo y saturación de paleta Inky. Por defecto no se realza nada (1.0 / 1.0 / 1.0, paleta 0.5, igual que los ejemplos de Pimoroni).
 - Perfiles de ajuste: guardar combinaciones de color/contraste/brillo/paleta con nombre y volver a cargarlas.
 
+- Interfaz en español o inglés (selector ES/EN arriba a la derecha; se recuerda por navegador).
+
 Sin autenticación: pensado para uso en LAN.
 
 ## Estructura
@@ -88,3 +90,5 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (visible 
 | POST | `/api/images/<name>/show` | Pasar a modo imagen única con esa imagen |
 | POST | `/api/current/save` | Guardar la portada de cómic en pantalla en la galería (`{"last_refresh": ...}`) |
 | GET | `/current/download` | Descargar el original de la imagen en pantalla (JPEG) |
+
+Los errores de la API se devuelven como `{"error": {"code": ..., "params": {...}, "message": ...}}`; la UI traduce `code` (ver `static/i18n.js`) y usa `message` (inglés) como respaldo.
