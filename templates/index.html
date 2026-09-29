@@ -131,12 +131,13 @@
             <select name="source">
               <option value="search" data-i18n="adv.sourceSearch"></option>
               <option value="volumes" data-i18n="adv.sourceVolumes"></option>
+              <option value="issues" data-i18n="adv.sourceIssues"></option>
             </select>
           </label>
-          <label class="row vol-only"><span data-i18n="adv.cvFilter"></span>
+          <label class="row cv-only"><span data-i18n="adv.cvFilter"></span>
             <input type="text" name="cv_filter" placeholder="date_added:2020-01-01|2026-12-31">
           </label>
-          <label class="row vol-only"><span data-i18n="adv.sort"></span>
+          <label class="row cv-only"><span data-i18n="adv.sort"></span>
             <input type="text" name="sort" placeholder="name:asc">
           </label>
           <div class="row">
@@ -146,34 +147,39 @@
           </div>
           <label class="row"><span data-i18n="adv.volumeId"></span>
             <input type="number" name="volume_id" min="1" placeholder="4250">
-            <small data-i18n="adv.volumeIdHint"></small>
+            <small class="volume-id-hint"></small>
           </label>
           <small class="hint fields-hint"></small>
         </fieldset>
         <fieldset>
           <legend data-i18n="adv.appGroup"></legend>
-          <label class="row"><span data-i18n="adv.publishers"></span>
+          <label class="row vol-only"><span data-i18n="adv.publishers"></span>
             <input type="text" name="publishers" data-i18n-placeholder="adv.publishersPlaceholder">
           </label>
-          <div class="row">
+          <div class="row vol-only">
             <span data-i18n="adv.years"></span>
             <input type="number" name="year_from" min="1800" max="2200"> –
             <input type="number" name="year_to" min="1800" max="2200">
           </div>
-          <label class="row"><span data-i18n="adv.minIssues"></span> <input type="number" name="min_issues" min="1"></label>
+          <label class="row vol-only"><span data-i18n="adv.minIssues"></span> <input type="number" name="min_issues" min="1"></label>
           <label class="row"><span data-i18n="adv.exclude"></span>
             <input type="text" name="exclude_words" data-i18n-placeholder="adv.excludePlaceholder">
           </label>
+          <small class="hint issues-only" data-i18n="adv.issuesFiltersHint"></small>
+          <label class="jq-row"><span data-i18n="adv.jq"></span>
+            <textarea name="jq" rows="2" spellcheck="false" placeholder="map(select(.count_of_issues > 50))"></textarea>
+          </label>
+          <small class="hint jq-hint"></small>
         </fieldset>
         <fieldset>
           <legend data-i18n="adv.pickGroup"></legend>
-          <label class="row"><span data-i18n="adv.volumePick"></span>
+          <label class="row"><span class="volume-pick-label"></span>
             <select name="volume_pick">
               <option value="random" data-i18n="adv.pickRandom"></option>
               <option value="first" data-i18n="adv.pickFirst"></option>
             </select>
           </label>
-          <label class="row"><span data-i18n="adv.issuePick"></span>
+          <label class="row vol-only"><span data-i18n="adv.issuePick"></span>
             <select name="issue_pick">
               <option value="random_all" data-i18n="adv.issueRandomAll"></option>
               <option value="first100" data-i18n="adv.issueFirst100"></option>
@@ -182,6 +188,7 @@
           <div class="row">
             <span data-i18n="adv.coverDates"></span>
             <input type="date" name="cover_date_from"> – <input type="date" name="cover_date_to">
+            <small class="issues-only" data-i18n="adv.coverDatesIssuesHint"></small>
           </div>
           <label class="row"><span data-i18n="adv.cacheHours"></span> <input type="number" name="cache_hours" min="1" max="168"></label>
         </fieldset>

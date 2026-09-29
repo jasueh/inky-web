@@ -392,6 +392,14 @@ let openSearchId = null;
 let searchesKey = "";
 let updateOpenPanel = null; // re-renders dynamic texts of the open panel
 
+// Same fallback as comics._label on the server: what the search is about.
+function searchLabel(s) {
+  if (s.term) return s.term;
+  if (s.volume_id) return `#${s.volume_id}`;
+  if (s.cv_filter) return s.cv_filter;
+  return `${s.cover_date_from || "…"} – ${s.cover_date_to || "…"}`;
+}
+
 function searchSummary(s) {
   if (!s.advanced) return "";
   const parts = [s.volume_id ? `#${s.volume_id}` : s.source];
@@ -399,6 +407,7 @@ function searchSummary(s) {
   if (s.year_from || s.year_to) parts.push(`${s.year_from || "…"}–${s.year_to || "…"}`);
   if (s.min_issues) parts.push(`≥${s.min_issues}`);
   if (s.cover_date_from || s.cover_date_to) parts.push(t("adv.coverShort", { from: s.cover_date_from || "…", to: s.cover_date_to || "…" }));
+  if (s.jq) parts.push("jq");
   return parts.join(" · ");
 }
 
@@ -427,7 +436,7 @@ function searchItem(s) {
       <button type="button" data-act="edit"></button>
       <button type="button" data-act="remove" class="danger">×</button>
     </div>`;
-  li.querySelector(".search-term").textContent = s.term || "—";
+  li.querySelector(".search-term").textContent = searchLabel(s);
   const badge = li.querySelector(".badge");
   badge.hidden = !s.advanced;
   badge.textContent = t("adv.badge");
@@ -438,7 +447,7 @@ function searchItem(s) {
   const remove = li.querySelector("[data-act=remove]");
   remove.title = t("comics.remove");
   remove.addEventListener("click", () => {
-    if (s.advanced && !confirm(t("adv.confirmRemove", { term: s.term || `#${s.volume_id}` }))) return;
+    if (s.advanced && !confirm(t("adv.confirmRemove", { term: searchLabel(s) }))) return;
     saveConfig({ comics: { searches: data.config.comics.searches.filter((x) => x.id !== s.id) } });
   });
   return li;
@@ -471,20 +480,35 @@ function updatePanel(panel) {
   const f = (name) => panel.querySelector(`[name=${name}]`);
   const advanced = f("advanced").checked;
   const source = f("source").value;
+  const issues = source === "issues";
+  const show = (sel, on) => panel.querySelectorAll(sel).forEach((el) => (el.hidden = !on));
   panel.querySelector(".adv-fields").hidden = !advanced;
-  for (const el of panel.querySelectorAll(".adv-only")) el.hidden = !advanced;
-  for (const el of panel.querySelectorAll(".vol-only")) el.hidden = source !== "volumes";
+  show(".adv-only", advanced);
+  show(".cv-only", source in meta.filter_fields); // search takes no filter/sort
+  show(".vol-only", !issues); // issues carry no publisher/year/issue count
+  show(".issues-only", issues);
+
   const max = meta.page_max[source];
   f("page_size").max = max;
   f("pages").max = meta.max_pages;
   if (Number(f("page_size").value) > max) f("page_size").value = max;
-  const calls = f("volume_id").value ? 1 : Math.min(meta.max_pages, Math.max(1, Number(f("pages").value) || 1));
+  const fixedVolume = f("volume_id").value && !issues; // with issues the id is just a filter
+  const calls = fixedVolume ? 1 : Math.min(meta.max_pages, Math.max(1, Number(f("pages").value) || 1));
   const size = Math.min(max, Math.max(1, Number(f("page_size").value) || max));
-  panel.querySelector(".cost").textContent = f("volume_id").value
+  panel.querySelector(".cost").textContent = fixedVolume
     ? t("adv.costFixed")
     : t("adv.cost", { calls, results: calls * size, max });
   panel.querySelector(".fields-hint").textContent =
-    source === "volumes" ? t("adv.fieldsHint", { fields: meta.volume_filter_fields.join(", ") }) : t("adv.searchHint");
+    source in meta.filter_fields
+      ? t("adv.fieldsHint", { fields: meta.filter_fields[source].join(", "), sort: meta.sort_fields[source].join(", ") })
+      : t("adv.searchHint");
+  panel.querySelector(".volume-id-hint").textContent = t(issues ? "adv.volumeIdIssuesHint" : "adv.volumeIdHint");
+  panel.querySelector(".volume-pick-label").textContent = t(issues ? "adv.issuesPick" : "adv.volumePick");
+
+  f("jq").disabled = !meta.jq_available;
+  panel.querySelector(".jq-hint").textContent = t(meta.jq_available ? "adv.jqHint" : "adv.jqMissing", {
+    kind: t(issues ? "adv.jqIssues" : "adv.jqVolumes"),
+  });
 }
 
 function openPanel(li, s) {
@@ -545,14 +569,22 @@ function showProbe(out, r) {
   const age = Math.round((Date.now() / 1000 - r.fetched_at) / 60);
   const head = document.createElement("p");
   head.textContent =
-    t("adv.probeSummary", { fetched: r.fetched, total: r.total ?? "?", passed: r.passed }) +
+    t(r.kind === "issues" ? "adv.probeSummaryIssues" : "adv.probeSummary", {
+      fetched: r.fetched,
+      total: r.total ?? "?",
+      passed: r.passed,
+    }) +
     " · " +
     (r.cached ? t("adv.fromCache", { minutes: age }) : t("adv.fresh", { calls: r.calls }));
 
   const table = document.createElement("table");
   table.className = "probe-table";
   const hdr = table.insertRow();
-  for (const k of ["adv.colName", "adv.colYear", "adv.colPublisher", "adv.colIssues", "adv.colId"]) {
+  const issues = r.kind === "issues";
+  const cols = issues
+    ? ["adv.colIssue", "adv.colCoverDate", "adv.colId"]
+    : ["adv.colName", "adv.colYear", "adv.colPublisher", "adv.colIssues", "adv.colId"];
+  for (const k of cols) {
     const th = document.createElement("th");
     th.textContent = t(k);
     hdr.append(th);
@@ -568,7 +600,8 @@ function showProbe(out, r) {
       a.textContent = c.name;
       name.append(a);
     } else name.textContent = c.name;
-    for (const v of [c.start_year, c.publisher, c.count_of_issues, c.id]) row.insertCell().textContent = v ?? "—";
+    const rest = issues ? [c.cover_date, c.id] : [c.start_year, c.publisher, c.count_of_issues, c.id];
+    for (const v of rest) row.insertCell().textContent = v ?? "—";
   }
 
   const details = document.createElement("details");

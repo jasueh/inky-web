@@ -151,3 +151,9 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .probe-table th, .probe-table td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border); }
 .probe-table th { color: var(--muted); font-weight: 500; }
 .probe-out pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8rem; background: var(--bg); padding: 8px; border-radius: 6px; }
+.jq-row { display: grid; gap: 4px; margin: 10px 0 4px; }
+.jq-row textarea {
+  font: 0.85rem/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; color: inherit; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; resize: vertical; width: 100%;
+}
+.jq-row textarea:disabled { opacity: 0.5; }
