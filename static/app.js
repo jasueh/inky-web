@@ -394,6 +394,7 @@ let updateOpenPanel = null; // re-renders dynamic texts of the open panel
 
 // Same fallback as comics._label on the server: what the search is about.
 function searchLabel(s) {
+  if (s.name) return s.name;
   if (s.term) return s.term;
   if (s.volume_id) return `#${s.volume_id}`;
   if (s.cv_filter) return s.cv_filter;
@@ -401,8 +402,10 @@ function searchLabel(s) {
 }
 
 function searchSummary(s) {
-  if (!s.advanced) return "";
-  const parts = [s.volume_id ? `#${s.volume_id}` : s.source];
+  // with a custom name, still show what is actually searched
+  const searched = s.name && s.term ? [`"${s.term}"`] : [];
+  if (!s.advanced) return searched.join(" · ");
+  const parts = [...searched, s.volume_id ? `#${s.volume_id}` : s.source];
   if (s.publishers.length) parts.push(s.publishers.join(", "));
   if (s.year_from || s.year_to) parts.push(`${s.year_from || "…"}–${s.year_to || "…"}`);
   if (s.min_issues) parts.push(`≥${s.min_issues}`);
@@ -414,8 +417,11 @@ function searchSummary(s) {
 function renderSearches(cfg) {
   const key = lang + JSON.stringify(cfg.comics.searches);
   if (openSearchId || key === searchesKey) return;
+  // Fill defaults (older or hand-edited configs may lack fields) and only mark
+  // the list as rendered once it actually rendered.
+  const defaults = data.comics_meta.search_defaults;
+  $("searches").replaceChildren(...cfg.comics.searches.map((s) => searchItem({ ...defaults, ...s })));
   searchesKey = key;
-  $("searches").replaceChildren(...cfg.comics.searches.map(searchItem));
 }
 
 function forceRenderSearches() {

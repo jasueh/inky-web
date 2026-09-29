@@ -36,6 +36,7 @@ There is no authentication: it is meant for use on your LAN only.
   - **Optional jq expression** applied to the candidate list.
 - **Cache:** each advanced search's candidate list is cached (24 h by default, in `data/cache/`). Changing app-side filters or jq costs no API calls.
 - **Test:** shows the candidates and the equivalent `curl`, and asks before spending calls.
+- **Name:** each search can have its own display name (shown in the list and in "Showing" instead of the term or id).
 - **Enable / disable:** each search can be turned on or off without losing its configuration.
 - The API key, searches and call budget are all editable from the UI.
 

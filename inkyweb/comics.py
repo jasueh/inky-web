@@ -58,6 +58,7 @@ JQ_FORBIDDEN = re.compile(
 )
 
 SEARCH_DEFAULTS = {
+    "name": "",  # optional display name (list, "Showing"); falls back to the term / id
     "term": "",
     "advanced": False,
     "source": "search",  # search | volumes | issues
@@ -119,6 +120,7 @@ def normalize_search(item):
     """Fill defaults, clamp values and validate a search from the UI."""
     s = {**SEARCH_DEFAULTS, **{k: v for k, v in (item or {}).items() if k in SEARCH_DEFAULTS}}
     s["id"] = item.get("id") if _ID.match(str(item.get("id", ""))) else uuid.uuid4().hex[:8]
+    s["name"] = str(s["name"] or "").strip()[:60]
     s["term"] = str(s["term"] or "").strip()[:100]
     s["advanced"] = bool(s["advanced"])
     s["enabled"] = bool(s["enabled"])
@@ -413,6 +415,8 @@ def _advanced(api_key, s, budget):
 
 
 def _label(s):
+    if s.get("name"):
+        return s["name"]
     if s["term"]:
         return s["term"]
     if s["volume_id"]:

@@ -196,6 +196,8 @@ const I18N = {
     "adv.enableTitle": "Desactivada: marcá para volver a usarla (conserva su configuración)",
     "adv.disableTitle": "Activa: desmarcá para no usarla por ahora (conserva su configuración)",
     "err.no_enabled_searches": "Todas las búsquedas están desactivadas; activá al menos una",
+    "adv.name": "Nombre (opcional)",
+    "adv.namePlaceholder": "Ej: One Piece #1 (Viz)",
   },
 
   en: {
@@ -391,6 +393,8 @@ const I18N = {
     "adv.enableTitle": "Disabled: tick to use it again (keeps its configuration)",
     "adv.disableTitle": "Enabled: untick to stop using it for now (keeps its configuration)",
     "err.no_enabled_searches": "All searches are disabled; enable at least one",
+    "adv.name": "Name (optional)",
+    "adv.namePlaceholder": "e.g. One Piece #1 (Viz)",
   },
 };
 
