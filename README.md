@@ -1,42 +1,53 @@
 # inky-web
 
-Web UI ligera para controlar una **Pimoroni Inky Impression 13.3"** (Spectra 6, 1600×1200) desde el navegador.
+**English** · [Español](README.es.md)
 
-- **Imagen única**: elegir una imagen subida y dejarla fija.
-- **Galería**: rotar entre las imágenes marcadas, en orden aleatorio o secuencial.
-- **Cómics random**: portadas al azar desde la API de [Comic Vine](https://comicvine.gamespot.com/api/) (adaptado del ejemplo `examples/spectra6/comics` de `pimoroni/inky`).
-  - Búsquedas **simples** (como el ejemplo de Pimoroni: `/search/`, 5 volúmenes, primeros 100 números) o **avanzadas**: fuente `search`, `volumes` o `issues` (números directamente, p. ej. todas las portadas de un rango de fechas), filtro y orden de Comic Vine, paginado configurable, filtros en la app (editoriales, año de inicio, mínimo de números, palabras excluidas), serie fija por ID, fecha de portada y número al azar entre **todos** los de la serie.
-  - La lista de series de cada búsqueda avanzada se guarda en caché (`data/cache/`, 24 h por defecto); cambiar filtros de la app no hace llamadas. "Probar" muestra los candidatos y el `curl` equivalente.
-  - Cada búsqueda se puede **activar o desactivar** con su casilla sin perder su configuración; solo se usan las activas.
-  - Expresión **jq** opcional sobre la lista de candidatos (requiere `sudo apt install jq`). Se ejecuta con entorno vacío, en un directorio temporal y con timeout de 5 s; se rechazan `import`, `include`, `env`/`$ENV` y expresiones que empiezan con `-`, porque permitirían leer archivos (como `data/config.json`, que tiene la API key) o el entorno.
-  - Todas las llamadas pasan por un contador por endpoint con tope configurable (150/h por defecto; Comic Vine permite 200 por endpoint por hora) y se espacian 1 s.
-- Frecuencia de rotación configurable (mínimo 2 min, un refresco completo tarda ~30-40 s).
-- No redibuja al iniciar la app (la tinta e-ink conserva la imagen): retoma la rotación desde el último refresco. Se puede activar "Refrescar al iniciar la app" en la sección Modo.
-- Gestión de imágenes: subir (varias a la vez), mostrar, borrar, incluir/excluir de la galería.
-- API key y lista de búsquedas de Comic Vine editables desde la UI.
-- Ajuste de pantalla: mantener aspect ratio con bordes o recortar, rotación automática de imágenes verticales, realce de color/contraste/brillo y saturación de paleta Inky. Por defecto no se realza nada (1.0 / 1.0 / 1.0, paleta 0.5, igual que los ejemplos de Pimoroni).
-- Perfiles de ajuste: guardar combinaciones de color/contraste/brillo/paleta con nombre y volver a cargarlas.
+A lightweight web UI to control a **Pimoroni Inky Impression 13.3"** (Spectra 6, 1600×1200) from the browser: upload and manage images, rotate a gallery, or show random comic covers from [Comic Vine](https://comicvine.gamespot.com/api/).
 
-- Interfaz en español o inglés (selector ES/EN arriba a la derecha; se recuerda por navegador).
+There is no authentication: it is meant for use on your LAN only.
 
-Sin autenticación: pensado para uso en LAN.
+## Features
 
-## Estructura
+**Modes**
+- **Single image:** pick an uploaded image and leave it on screen.
+- **Gallery:** rotate through the selected images, in random or sequential order.
+- **Random comics:** random covers from Comic Vine (based on the `examples/spectra6/comics` example in [`pimoroni/inky`](https://github.com/pimoroni/inky)).
+- **Configurable interval** (minimum 2 minutes; a full panel refresh takes about 30–40 s). Mode and interval changes are staged behind **Apply / Discard**, so a stray click doesn't refresh the panel.
+- **No redraw on startup:** e-ink keeps its image without power, so the app resumes the rotation from the last refresh. You can turn on "Refresh when the app starts" instead.
 
-```
-app.py                Flask app + API JSON
-inkyweb/config.py     config.json / state.json persistentes (en data/)
-inkyweb/display.py    preparación de imagen + driver Inky (o mock)
-inkyweb/comics.py     cliente Comic Vine
-inkyweb/scheduler.py  thread que refresca según el modo
-templates/, static/   UI (HTML + JS vanilla)
-inky-web.service      unit de systemd
-data/                 (no versionado) imágenes, thumbnails, config, preview
-```
+**Images**
+- Upload several at once, show, delete, and include or exclude them from the gallery.
+- **Save the comic on screen** to the gallery (the original cover, with a readable file name) or **download** whatever is on screen.
 
-## Instalación en la Raspberry Pi
+**Display**
+- **Keeps the aspect ratio:** either the whole image with borders, or filling the panel and cropping. Portrait images are rotated automatically.
+- **Colour, contrast, brightness and Inky palette saturation.** The defaults are neutral (1.0 / 1.0 / 1.0, palette 0.5), the same as the Pimoroni examples, with a "Pimoroni values" button to go back to them.
+- **Apply redraws the image currently on screen** with the new values, so you can compare settings. It doesn't move the rotation schedule.
+- **Presets:** save colour / contrast / brightness / palette combinations under a name and load them back.
+- **Upright preview:** the UI preview undoes the automatic rotation, with ⟲ / ⟳ buttons to adjust it (UI only, remembered per browser).
 
-Requiere el venv de Pimoroni con la librería `inky` ya instalada (`~/.virtualenvs/pimoroni`).
+**Comic searches**
+- **Simple searches** behave exactly like the Pimoroni example: `/search/`, 5 volumes, the first one (or a random one), and a random issue among the volume's first 100.
+- **Advanced searches** add:
+  - **Source:** `search` (relevance text search), `volumes` (filter by name) or `issues` (issues directly, e.g. every cover in a date range).
+  - **Comic Vine query:** filter and sort (only on the fields the API accepts), and configurable pages × page size.
+  - **App-side filters:** publishers, volume start year, minimum issue count and excluded title words.
+  - **Picking:** a fixed volume by ID, a cover date range, and the issue picked among **all** of the volume's issues.
+  - **Optional jq expression** applied to the candidate list.
+- **Cache:** each advanced search's candidate list is cached (24 h by default, in `data/cache/`). Changing app-side filters or jq costs no API calls.
+- **Test:** shows the candidates and the equivalent `curl`, and asks before spending calls.
+- **Enable / disable:** each search can be turned on or off without losing its configuration.
+- The API key, searches and call budget are all editable from the UI.
+
+**Interface** in Spanish or English (ES/EN switch at the top right, remembered per browser).
+
+## Requirements
+
+- Raspberry Pi with the Inky Impression 13.3", and Pimoroni's venv with the `inky` library installed (their installer creates `~/.virtualenvs/pimoroni`).
+- A free Comic Vine API key, only for comics mode: https://comicvine.gamespot.com/api/
+- `jq` (`sudo apt install jq`), only for jq expressions in advanced searches.
+
+## Installation on the Pi
 
 ```bash
 git clone <repo> ~/inky-web
@@ -44,14 +55,16 @@ cd ~/inky-web
 ~/.virtualenvs/pimoroni/bin/pip install -r requirements.txt
 ```
 
-Probar a mano:
+Run it by hand:
 
 ```bash
 ~/.virtualenvs/pimoroni/bin/python app.py
-# http://eInkPI.local:8080
+# http://<pi-hostname>.local:8080
 ```
 
-Como servicio:
+The log should say `Inky display detected: ...`. If it says `running in mock mode` instead, the app is not using the venv with the `inky` library.
+
+As a service (the unit assumes user `jasueh`, `~/inky-web` and Pimoroni's venv; adjust `inky-web.service` if yours differ):
 
 ```bash
 sudo cp inky-web.service /etc/systemd/system/
@@ -60,42 +73,90 @@ sudo systemctl enable --now inky-web
 journalctl -u inky-web -f
 ```
 
-Si el script de cómics de Pimoroni (u otro) está corriendo por cron, desactivarlo: solo un proceso debe manejar la pantalla.
+If Pimoroni's comic script or anything else drives the panel (from cron, another service, etc.), disable it: only one process should use the display.
 
-## Desarrollo sin hardware
+## Updating
+
+```bash
+cd ~/inky-web && git pull && sudo systemctl restart inky-web
+```
+
+Reload the page with `Ctrl+Shift+R` so the browser picks up the new JS.
+
+## Images copied by hand
+
+You can copy files straight into `data/images/` (e.g. with `scp`) and they show up in the UI. Two caveats:
+- **No thumbnail is created:** thumbnails are only made when uploading from the UI, so the tile shows a broken image. Upload the file from the UI instead, or create the thumbnail in `data/thumbs/<name>.jpg` (max. 400×300).
+- **File names must be "safe":** no spaces or accents (Werkzeug's `secure_filename`). Otherwise the app lists the file but refuses to show or delete it.
+
+Some of Pimoroni's example images (e.g. `examples/spectra6/images/vincent-van-gogh-inky13.jpg`) are already rotated to fit the landscape panel buffer. Rotate them upright before using them here, so the app rotates them itself.
+
+## Comic Vine: API notes
+
+Taken from the official docs (comicvine.gamespot.com/api and /api/documentation):
+- **Rate limit:** 200 requests per **resource** per hour, plus "velocity detection" (temporary blocks for too many requests per second). The app spaces its calls 1 s apart and enforces its own configurable budget (150/h per resource by default). The UI shows the calls made in the last hour.
+- **`/search/`:** returns at most **10 results per call** (paging with `offset`) and accepts **no `filter` or `sort`**.
+- **`/volumes/` and `/issues/`:** return up to 100 per call and accept `filter=field:value,...` only on these fields:
+
+| Resource | Filterable | Sortable |
+|---|---|---|
+| `/volumes/` | `name`, `id`, `date_added`, `date_last_updated` | same |
+| `/issues/` | `name`, `aliases`, `id`, `issue_number`, `volume`, `cover_date`, `store_date`, `date_added`, `date_last_updated` | all except `aliases` and `volume` |
+
+- **Publisher, start year and issue count can't be filtered in the query.** That's why the app filters them itself. For example, a `wolverine` search returns Panini's Italian edition first, before Marvel's.
+- The docs don't say whether `filter=name:` matches "contains" or the exact name, nor the exact date format for `cover_date` (the app uses `YYYY-MM-DD|YYYY-MM-DD`).
+
+**jq expressions:** jq can read files (`import` / `include` of `.jq` / `.json` modules, e.g. `data/config.json` with the API key) and the environment (`env`, `$ENV`), and an expression starting with `-` would be parsed as a command-line option. The app refuses those expressions and runs jq with an empty environment, in a temporary directory, with a 5 s timeout. The result must be a single list.
+
+## Development without hardware
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 INKY_MOCK=1 .venv/bin/python app.py
 ```
 
-En modo mock la imagen procesada solo se escribe en `data/current.png` (visible en la UI).
+In mock mode the processed image is only written to `data/current.png` (shown as the preview in the UI).
 
-## Variables de entorno
+## Environment variables
 
-| Variable | Default | Uso |
+| Variable | Default | Purpose |
 |---|---|---|
-| `INKY_WEB_PORT` | `8080` | Puerto HTTP |
-| `INKY_WEB_HOST` | `0.0.0.0` | Interfaz de escucha |
-| `INKY_WEB_DATA` | `./data` | Carpeta de imágenes, config y estado |
-| `INKY_MOCK` | — | `1` para correr sin pantalla |
+| `INKY_WEB_PORT` | `8080` | HTTP port |
+| `INKY_WEB_HOST` | `0.0.0.0` | Listen address |
+| `INKY_WEB_DATA` | `./data` | Folder for images, config, state and cache |
+| `INKY_MOCK` | — | `1` to run without a display |
+
+## Project structure
+
+```
+app.py                  Flask app + JSON API
+inkyweb/config.py       persistent config.json / state.json (in data/), migrations
+inkyweb/display.py      image preparation + Inky driver (or mock)
+inkyweb/scheduler.py    background thread: refresh / redraw according to the mode
+inkyweb/comics.py       simple and advanced comic searches, cache, jq, probing
+inkyweb/cvapi.py        Comic Vine client: call spacing, per-resource budget, curl
+inkyweb/errors.py       coded errors that the UI translates
+templates/, static/     UI (HTML + vanilla JS); texts in static/i18n.js
+inky-web.service        systemd unit
+data/                   (not versioned) images, thumbnails, config, state, cache, preview
+```
 
 ## API
 
-| Método | Ruta | Descripción |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/status` | Config (sin API key), estado, lista de imágenes |
-| POST | `/api/config` | Actualización parcial de config (JSON) |
-| POST | `/api/refresh` | Refrescar ahora (siguiente imagen según el modo) |
-| POST | `/api/redraw` | Redibujar la imagen actual con los ajustes de pantalla vigentes |
-| POST | `/api/comics/probe` | Probar una búsqueda avanzada (`{"search": {...}, "dry_run": true}` solo informa cuántas llamadas haría) |
-| POST | `/api/comics/cache/clear` | Vaciar el caché de una búsqueda (`{"search": {...}}`) |
-| POST | `/api/presets` | Guardar/sobrescribir un perfil (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
-| DELETE | `/api/presets/<name>` | Borrar un perfil |
-| POST | `/api/images` | Subir imágenes (`multipart`, campo `files`) |
-| DELETE | `/api/images/<name>` | Borrar imagen |
-| POST | `/api/images/<name>/show` | Pasar a modo imagen única con esa imagen |
-| POST | `/api/current/save` | Guardar la portada de cómic en pantalla en la galería (`{"last_refresh": ...}`) |
-| GET | `/current/download` | Descargar el original de la imagen en pantalla (JPEG) |
+| GET | `/api/status` | Config (without the API key), state, images, API usage |
+| POST | `/api/config` | Partial config update (JSON) |
+| POST | `/api/refresh` | Refresh now (next image for the current mode) |
+| POST | `/api/redraw` | Redraw the current image with the current display settings |
+| POST | `/api/images` | Upload images (`multipart`, field `files`) |
+| DELETE | `/api/images/<name>` | Delete an image |
+| POST | `/api/images/<name>/show` | Switch to single-image mode with that image |
+| POST | `/api/current/save` | Save the comic cover on screen to the gallery (`{"last_refresh": ...}`) |
+| GET | `/current/download` | Download the original of the image on screen (JPEG) |
+| POST | `/api/presets` | Save / overwrite a preset (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
+| DELETE | `/api/presets/<name>` | Delete a preset |
+| POST | `/api/comics/probe` | Test an advanced search (`{"search": {...}, "dry_run": true}` only reports how many calls it would make) |
+| POST | `/api/comics/cache/clear` | Clear a search's cache (`{"search": {...}}`) |
 
-Los errores de la API se devuelven como `{"error": {"code": ..., "params": {...}, "message": ...}}`; la UI traduce `code` (ver `static/i18n.js`) y usa `message` (inglés) como respaldo.
+API errors are returned as `{"error": {"code": ..., "params": {...}, "message": ...}}`. The UI translates `code` (see `static/i18n.js`) and falls back to `message` (English).
