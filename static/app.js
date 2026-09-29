@@ -278,6 +278,17 @@ $("display-discard").addEventListener("click", () => {
   displayDirty = false;
   render(data);
 });
+$("display-defaults").addEventListener("click", () => {
+  const d = data.display_defaults;
+  $("fit").value = d.fit;
+  $("border").value = d.border;
+  $("auto-rotate").checked = d.auto_rotate;
+  for (const key of SLIDERS) {
+    $(key).value = d[key];
+    $(key).nextElementSibling.textContent = Number(d[key]).toFixed(2);
+  }
+  markDisplayDirty(); // staged: still needs Aplicar
+});
 
 // ---------- polling ----------
 

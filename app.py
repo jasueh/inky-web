@@ -106,6 +106,7 @@ def status():
         config=public_config(config.load_config()),
         state={**config.load_state(), "busy": scheduler.busy},
         images=[{"name": n, "thumb": f"/thumbs/{thumb_name(n)}"} for n in images],
+        display_defaults=config.DEFAULT_CONFIG["display"],
         resolution=display.resolution(),
         min_interval=config.MIN_INTERVAL_MINUTES,
     )
