@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inky Web</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>Inky Web</h1>
+  <span id="busy" class="badge" hidden>Actualizando pantalla…</span>
+</header>
+
+<main>
+  <section class="card" id="status-card">
+    <h2>En pantalla</h2>
+    <div class="status-grid">
+      <img id="preview" alt="Vista previa de la pantalla">
+      <dl>
+        <dt>Modo</dt><dd id="st-mode">—</dd>
+        <dt>Mostrando</dt><dd id="st-detail">—</dd>
+        <dt>Último refresco</dt><dd id="st-last">—</dd>
+        <dt>Próximo refresco</dt><dd id="st-next">—</dd>
+        <dt>Resolución</dt><dd id="st-res">—</dd>
+      </dl>
+    </div>
+    <p id="st-error" class="error" hidden></p>
+    <button id="btn-refresh" class="primary">Refrescar ahora</button>
+  </section>
+
+  <section class="card">
+    <h2>Modo</h2>
+    <div class="segmented" id="mode">
+      <label><input type="radio" name="mode" value="single"> Imagen única</label>
+      <label><input type="radio" name="mode" value="gallery"> Galería</label>
+      <label><input type="radio" name="mode" value="comics"> Cómics random</label>
+    </div>
+    <label class="row">
+      Cambiar cada
+      <input type="number" id="interval" min="2" step="1"> minutos
+      <small id="interval-hint"></small>
+    </label>
+    <p class="hint">La frecuencia aplica a Galería y Cómics. En Imagen única la pantalla no rota.</p>
+  </section>
+
+  <section class="card">
+    <h2>Imágenes</h2>
+    <form id="upload-form">
+      <input type="file" id="files" name="files" accept="image/*" multiple>
+      <button type="submit">Subir</button>
+      <span id="upload-msg" class="hint"></span>
+    </form>
+    <label class="row">
+      Orden de la galería
+      <select id="gallery-order">
+        <option value="random">Aleatorio</option>
+        <option value="sequential">Secuencial</option>
+      </select>
+    </label>
+    <div class="row">
+      <button type="button" id="gallery-all">Todas en galería</button>
+      <button type="button" id="gallery-none">Ninguna</button>
+    </div>
+    <div id="images" class="grid"></div>
+    <p id="images-empty" class="hint" hidden>Todavía no hay imágenes.</p>
+  </section>
+
+  <section class="card">
+    <h2>Cómics (Comic Vine)</h2>
+    <label class="row">
+      API key
+      <input type="password" id="api-key" autocomplete="off" placeholder="sin configurar">
+      <button type="button" id="save-key">Guardar</button>
+    </label>
+    <label class="row">
+      <input type="checkbox" id="random-volume"> Volumen aleatorio (entre los 5 primeros resultados)
+    </label>
+    <h3>Búsquedas</h3>
+    <ul id="queries" class="chips"></ul>
+    <form id="query-form" class="row">
+      <input type="text" id="query-input" placeholder="Ej: Weird Science">
+      <button type="submit">Agregar</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Pantalla</h2>
+    <label class="row">
+      Ajuste
+      <select id="fit">
+        <option value="contain">Completa (bordes)</option>
+        <option value="fit">Llenar (recortar)</option>
+      </select>
+    </label>
+    <label class="row">
+      Color de bordes
+      <select id="border">
+        <option value="white">Blanco</option>
+        <option value="black">Negro</option>
+      </select>
+    </label>
+    <label class="row"><input type="checkbox" id="auto-rotate"> Rotar imágenes verticales</label>
+    <div class="sliders">
+      <label>Saturación de color <input type="range" id="color" min="0" max="3" step="0.1"><output></output></label>
+      <label>Contraste <input type="range" id="contrast" min="0" max="3" step="0.1"><output></output></label>
+      <label>Brillo <input type="range" id="brightness" min="0" max="3" step="0.05"><output></output></label>
+      <label>Paleta Inky (saturation) <input type="range" id="saturation" min="0" max="1" step="0.05"><output></output></label>
+    </div>
+    <p class="hint">En modo Imagen única los cambios se aplican al instante; en los otros modos, en el próximo refresco.</p>
+  </section>
+</main>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

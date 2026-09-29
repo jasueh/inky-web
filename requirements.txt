@@ -1,0 +1,4 @@
+flask>=3.0
+requests>=2.31
+pillow>=10.0
+# inky[rpi] is already installed in the Pimoroni venv (~/.virtualenvs/pimoroni)

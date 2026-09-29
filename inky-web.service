@@ -1,0 +1,15 @@
+[Unit]
+Description=inky-web - web UI for the Inky Impression
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=jasueh
+WorkingDirectory=/home/jasueh/inky-web
+ExecStart=/home/jasueh/.virtualenvs/pimoroni/bin/python app.py
+Environment=INKY_WEB_PORT=8080
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

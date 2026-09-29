@@ -1,0 +1,76 @@
+"""Image preparation (aspect ratio, colour boost) and the Inky display driver.
+
+Set INKY_MOCK=1 to run without hardware: the processed image is only written
+to the preview file.
+"""
+
+import logging
+import os
+import threading
+
+from PIL import Image, ImageEnhance, ImageOps
+
+from . import config
+
+log = logging.getLogger(__name__)
+
+DEFAULT_RESOLUTION = (1600, 1200)
+BORDERS = {"white": (255, 255, 255), "black": (0, 0, 0)}
+
+_display = None
+_display_lock = threading.Lock()
+
+
+def _get_display():
+    global _display
+    if _display is None:
+        if os.environ.get("INKY_MOCK") == "1":
+            _display = False
+        else:
+            try:
+                from inky.auto import auto
+
+                _display = auto()
+                log.info("Inky display detected: %s %s", type(_display).__name__, _display.resolution)
+            except Exception as e:  # no hardware / not on a Pi
+                log.warning("No Inky display available (%s); running in mock mode", e)
+                _display = False
+    return _display
+
+
+def resolution():
+    d = _get_display()
+    return tuple(d.resolution) if d else DEFAULT_RESOLUTION
+
+
+def prepare(img, opts):
+    """Fit an image to the panel keeping its aspect ratio and boost colours."""
+    w, h = resolution()
+    img = ImageOps.exif_transpose(img).convert("RGB")
+
+    if opts.get("auto_rotate", True) and (img.height > img.width) != (h > w):
+        img = img.rotate(90, expand=True)
+
+    if opts.get("fit") == "fit":
+        img = ImageOps.fit(img, (w, h), method=Image.LANCZOS, centering=(0.5, 0.5))
+    else:
+        border = BORDERS.get(opts.get("border"), BORDERS["white"])
+        img = ImageOps.pad(img, (w, h), method=Image.LANCZOS, color=border)
+
+    img = ImageEnhance.Color(img).enhance(float(opts.get("color", 1.0)))
+    img = ImageEnhance.Contrast(img).enhance(float(opts.get("contrast", 1.0)))
+    img = ImageEnhance.Brightness(img).enhance(float(opts.get("brightness", 1.0)))
+    return img
+
+
+def show(img, opts):
+    """Prepare and push an image to the panel. Blocks for the full refresh."""
+    img = prepare(img, opts)
+    with _display_lock:
+        img.save(config.PREVIEW_FILE)
+        d = _get_display()
+        if d:
+            d.set_image(img, saturation=float(opts.get("saturation", 0.5)))
+            d.show()
+        else:
+            log.info("Mock display: preview written to %s", config.PREVIEW_FILE)
