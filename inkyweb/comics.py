@@ -64,7 +64,7 @@ SEARCH_DEFAULTS = {
     "cv_filter": "",  # volumes/issues, e.g. "date_added:2020-01-01|2026-12-31"
     "sort": "",  # volumes/issues, e.g. "name:asc"
     "pages": 1,
-    "page_size": 10,
+    "page_size": None,  # None = the source's maximum (10 search, 100 volumes/issues)
     "volume_id": None,  # fixed volume (skips the search); with issues: filter by volume
     "publishers": [],
     "year_from": None,
@@ -176,7 +176,10 @@ def plan_requests(s):
     size, plan = s["page_size"], []
     for page in range(s["pages"]):
         if s["source"] == "search":
-            params = {"query": s["term"], "resources": "volume", "limit": size, "offset": page * size}
+            # /search/ ignores offset (the docs say otherwise; checked against
+            # the real API: offset=10 answers "offset":0 with the same results).
+            # It pages with a 1-based page number instead.
+            params = {"query": s["term"], "resources": "volume", "limit": size, "page": page + 1}
         else:
             filters = [f"name:{s['term']}"] if s["term"] else []
             if issues and s["volume_id"]:
@@ -227,19 +230,25 @@ def fetch_candidates(api_key, s, budget):
         return cached["results"], {"calls": 0, "cached": True, "fetched_at": cached["fetched_at"], "total": cached["total"]}
 
     results, seen, total, calls = [], set(), None, 0
-    for resource, params in plan_requests(s):
+    for n, (resource, params) in enumerate(plan_requests(s)):
         data = cvapi.request(resource, api_key, params, budget)
         calls += 1
         total = data.get("number_of_total_results") if total is None else total
         page = data.get("results") or []
         if isinstance(page, dict):  # some single-result responses
             page = [page]
+        new = 0
         for v in page:
             if v.get("id") not in seen:
                 seen.add(v.get("id"))
                 results.append(v)
-        # stop early: last page reached
-        if len(page) < params["limit"] or (total is not None and params.get("offset", 0) + params["limit"] >= total):
+                new += 1
+        # Stop early: last page reached, or the page brought nothing new
+        # (Comic Vine ignored the paging parameter) - don't waste more calls.
+        fetched_so_far = (n + 1) * params["limit"]
+        if len(page) < params["limit"] or (total is not None and fetched_so_far >= total) or (n > 0 and not new):
+            if n > 0 and not new and page:
+                log.warning("Comic Vine returned a repeated page for %s; stopped paging", resource)
             break
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)

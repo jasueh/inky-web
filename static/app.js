@@ -536,6 +536,12 @@ function openPanel(li, s) {
   li.append(panel);
   updateOpenPanel = () => updatePanel(panel);
   updateOpenPanel();
+  // A new source starts at its own per-call maximum (10 search, 100 volumes/issues).
+  const pageSize = panel.querySelector("[name=page_size]");
+  if (!pageSize.value) pageSize.value = data.comics_meta.page_max[panel.querySelector("[name=source]").value];
+  panel.querySelector("[name=source]").addEventListener("change", (e) => {
+    pageSize.value = data.comics_meta.page_max[e.target.value];
+  });
   panel.addEventListener("input", updateOpenPanel);
   panel.addEventListener("change", updateOpenPanel);
 

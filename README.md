@@ -95,7 +95,7 @@ Some of Pimoroni's example images (e.g. `examples/spectra6/images/vincent-van-go
 
 Taken from the official docs (comicvine.gamespot.com/api and /api/documentation):
 - **Rate limit:** 200 requests per **resource** per hour, plus "velocity detection" (temporary blocks for too many requests per second). The app spaces its calls 1 s apart and enforces its own configurable budget (150/h per resource by default). The UI shows the calls made in the last hour.
-- **`/search/`:** returns at most **10 results per call** (paging with `offset`) and accepts **no `filter` or `sort`**.
+- **`/search/`:** returns at most **10 results per call** and accepts **no `filter` or `sort`**. **It ignores `offset`**, even though the docs list it (`offset=10` answers `"offset":0` with the same results); it pages with a 1-based **`page`** parameter, which the app uses. If a page comes back with nothing new, the app stops paging instead of spending more calls.
 - **`/volumes/` and `/issues/`:** return up to 100 per call and accept `filter=field:value,...` only on these fields:
 
 | Resource | Filterable | Sortable |

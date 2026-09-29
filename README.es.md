@@ -95,7 +95,7 @@ Algunas imágenes de ejemplo de Pimoroni (por ejemplo `examples/spectra6/images/
 
 Según la documentación oficial (comicvine.gamespot.com/api y /api/documentation):
 - **Límite:** 200 llamadas por **endpoint** por hora, más "velocity detection" (bloqueos temporales si hay demasiadas llamadas por segundo). La app espacia sus llamadas 1 s y aplica un tope propio configurable (150/h por endpoint por defecto). La web muestra las llamadas de la última hora.
-- **`/search/`:** devuelve como máximo **10 resultados por llamada** (se pagina con `offset`) y **no acepta `filter` ni `sort`**.
+- **`/search/`:** devuelve como máximo **10 resultados por llamada** y **no acepta `filter` ni `sort`**. **Ignora `offset`**, aunque la documentación lo liste (`offset=10` responde `"offset":0` con los mismos resultados); pagina con el parámetro **`page`** (empieza en 1), que es el que usa la app. Si una página no trae nada nuevo, la app deja de paginar en vez de gastar más llamadas.
 - **`/volumes/` y `/issues/`:** devuelven hasta 100 por llamada y aceptan `filter=campo:valor,...` solo sobre estos campos:
 
 | Endpoint | Filtrables | Ordenables |
