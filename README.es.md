@@ -36,6 +36,7 @@ No tiene autenticación: está pensada solo para usar en tu red local.
   - **Expresión jq opcional** sobre la lista de candidatos.
 - **Caché:** la lista de candidatos de cada búsqueda avanzada se guarda (24 h por defecto, en `data/cache/`). Cambiar los filtros de la app o jq no gasta llamadas a la API.
 - **Probar:** muestra los candidatos y el `curl` equivalente, y pide confirmación antes de gastar llamadas.
+- **Nombre:** cada búsqueda puede tener un nombre propio (se muestra en la lista y en "Mostrando" en lugar del término o el ID).
 - **Activar / desactivar:** cada búsqueda se puede prender o apagar sin perder su configuración.
 - La API key, las búsquedas y el tope de llamadas se editan desde la web.
 
