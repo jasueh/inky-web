@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from inkyweb import config, display
+from inkyweb import comics, config, cvapi, display
 from inkyweb.errors import UserError
 from inkyweb.scheduler import Scheduler
 
@@ -139,6 +139,15 @@ def status():
         },
         images=[{"name": n, "thumb": f"/thumbs/{thumb_name(n)}"} for n in images],
         display_defaults=config.DEFAULT_CONFIG["display"],
+        comics_meta={
+            "search_defaults": comics.SEARCH_DEFAULTS,
+            "page_max": comics.PAGE_MAX,
+            "max_pages": comics.MAX_PAGES,
+            "volume_filter_fields": comics.VOLUME_FILTER_FIELDS,
+            "volume_sort_fields": comics.VOLUME_SORT_FIELDS,
+            "api_usage": cvapi.usage(),
+            "official_limit": cvapi.OFFICIAL_LIMIT,
+        },
         resolution=display.resolution(),
         min_interval=config.MIN_INTERVAL_MINUTES,
     )
@@ -176,8 +185,10 @@ def update_config():
 
     if "comics" in data:
         c = data["comics"]
-        if "queries" in c:
-            cfg["comics"]["queries"] = [q.strip() for q in c["queries"] if q and q.strip()]
+        if "searches" in c:
+            cfg["comics"]["searches"] = [comics.normalize_search(item) for item in c["searches"]]
+        if "rate_limit_per_hour" in c:
+            cfg["comics"]["rate_limit_per_hour"] = int(clamp(c["rate_limit_per_hour"], 10, cvapi.OFFICIAL_LIMIT))
         if "random_volume" in c:
             cfg["comics"]["random_volume"] = bool(c["random_volume"])
         if c.get("api_key"):  # empty = keep current key
@@ -235,6 +246,21 @@ def delete_preset(name):
         raise UserError("preset_not_found", "Preset not found", status=404)
     config.save_config(cfg)
     return status()
+
+
+@app.post("/api/comics/probe")
+def probe_search():
+    """Preview an advanced search. dry_run only reports the calls it would make."""
+    body = request.get_json(force=True) or {}
+    s = comics.normalize_search(body.get("search") or {})
+    return jsonify(comics.probe(config.load_config()["comics"], s, bool(body.get("dry_run"))))
+
+
+@app.post("/api/comics/cache/clear")
+def clear_search_cache():
+    body = request.get_json(force=True) or {}
+    comics.clear_cache(comics.normalize_search(body.get("search") or {}))
+    return jsonify(ok=True)
 
 
 @app.post("/api/refresh")

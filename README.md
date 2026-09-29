@@ -5,6 +5,9 @@ Web UI ligera para controlar una **Pimoroni Inky Impression 13.3"** (Spectra 6, 
 - **Imagen única**: elegir una imagen subida y dejarla fija.
 - **Galería**: rotar entre las imágenes marcadas, en orden aleatorio o secuencial.
 - **Cómics random**: portadas al azar desde la API de [Comic Vine](https://comicvine.gamespot.com/api/) (adaptado del ejemplo `examples/spectra6/comics` de `pimoroni/inky`).
+  - Búsquedas **simples** (como el ejemplo de Pimoroni: `/search/`, 5 volúmenes, primeros 100 números) o **avanzadas**: fuente `search` o `volumes`, filtro y orden de Comic Vine, paginado configurable, filtros en la app (editoriales, año de inicio, mínimo de números, palabras excluidas), serie fija por ID, fecha de portada y número al azar entre **todos** los de la serie.
+  - La lista de series de cada búsqueda avanzada se guarda en caché (`data/cache/`, 24 h por defecto); cambiar filtros de la app no hace llamadas. "Probar" muestra los candidatos y el `curl` equivalente.
+  - Todas las llamadas pasan por un contador por endpoint con tope configurable (150/h por defecto; Comic Vine permite 200 por endpoint por hora) y se espacian 1 s.
 - Frecuencia de rotación configurable (mínimo 2 min, un refresco completo tarda ~30-40 s).
 - No redibuja al iniciar la app (la tinta e-ink conserva la imagen): retoma la rotación desde el último refresco. Se puede activar "Refrescar al iniciar la app" en la sección Modo.
 - Gestión de imágenes: subir (varias a la vez), mostrar, borrar, incluir/excluir de la galería.
@@ -83,6 +86,8 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (visible 
 | POST | `/api/config` | Actualización parcial de config (JSON) |
 | POST | `/api/refresh` | Refrescar ahora (siguiente imagen según el modo) |
 | POST | `/api/redraw` | Redibujar la imagen actual con los ajustes de pantalla vigentes |
+| POST | `/api/comics/probe` | Probar una búsqueda avanzada (`{"search": {...}, "dry_run": true}` solo informa cuántas llamadas haría) |
+| POST | `/api/comics/cache/clear` | Vaciar el caché de una búsqueda (`{"search": {...}}`) |
 | POST | `/api/presets` | Guardar/sobrescribir un perfil (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
 | DELETE | `/api/presets/<name>` | Borrar un perfil |
 | POST | `/api/images` | Subir imágenes (`multipart`, campo `files`) |

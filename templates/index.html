@@ -106,13 +106,96 @@
     <label class="row">
       <input type="checkbox" id="random-volume"> <span data-i18n="comics.randomVolume"></span>
     </label>
+    <div class="row">
+      <span data-i18n="comics.budget"></span>
+      <input type="number" id="rate-limit" min="10" max="200" step="10">
+      <small id="api-usage"></small>
+    </div>
     <h3 data-i18n="comics.searches"></h3>
-    <ul id="queries" class="chips"></ul>
+    <p class="hint" data-i18n="comics.searchesHint"></p>
+    <ul id="searches" class="searches"></ul>
     <form id="query-form" class="row">
       <input type="text" id="query-input" data-i18n-placeholder="comics.queryPlaceholder">
       <button type="submit" data-i18n="comics.add"></button>
     </form>
   </section>
+
+  <template id="search-panel-tpl">
+    <div class="search-panel">
+      <label class="row"><input type="checkbox" name="advanced"> <strong data-i18n="adv.enable"></strong></label>
+      <label class="row"><span data-i18n="adv.term"></span> <input type="text" name="term"></label>
+      <div class="adv-fields">
+        <fieldset>
+          <legend data-i18n="adv.cvGroup"></legend>
+          <label class="row"><span data-i18n="adv.source"></span>
+            <select name="source">
+              <option value="search" data-i18n="adv.sourceSearch"></option>
+              <option value="volumes" data-i18n="adv.sourceVolumes"></option>
+            </select>
+          </label>
+          <label class="row vol-only"><span data-i18n="adv.cvFilter"></span>
+            <input type="text" name="cv_filter" placeholder="date_added:2020-01-01|2026-12-31">
+          </label>
+          <label class="row vol-only"><span data-i18n="adv.sort"></span>
+            <input type="text" name="sort" placeholder="name:asc">
+          </label>
+          <div class="row">
+            <span data-i18n="adv.pages"></span> <input type="number" name="pages" min="1">
+            × <input type="number" name="page_size" min="1">
+            <small class="cost"></small>
+          </div>
+          <label class="row"><span data-i18n="adv.volumeId"></span>
+            <input type="number" name="volume_id" min="1" placeholder="4250">
+            <small data-i18n="adv.volumeIdHint"></small>
+          </label>
+          <small class="hint fields-hint"></small>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="adv.appGroup"></legend>
+          <label class="row"><span data-i18n="adv.publishers"></span>
+            <input type="text" name="publishers" data-i18n-placeholder="adv.publishersPlaceholder">
+          </label>
+          <div class="row">
+            <span data-i18n="adv.years"></span>
+            <input type="number" name="year_from" min="1800" max="2200"> –
+            <input type="number" name="year_to" min="1800" max="2200">
+          </div>
+          <label class="row"><span data-i18n="adv.minIssues"></span> <input type="number" name="min_issues" min="1"></label>
+          <label class="row"><span data-i18n="adv.exclude"></span>
+            <input type="text" name="exclude_words" data-i18n-placeholder="adv.excludePlaceholder">
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="adv.pickGroup"></legend>
+          <label class="row"><span data-i18n="adv.volumePick"></span>
+            <select name="volume_pick">
+              <option value="random" data-i18n="adv.pickRandom"></option>
+              <option value="first" data-i18n="adv.pickFirst"></option>
+            </select>
+          </label>
+          <label class="row"><span data-i18n="adv.issuePick"></span>
+            <select name="issue_pick">
+              <option value="random_all" data-i18n="adv.issueRandomAll"></option>
+              <option value="first100" data-i18n="adv.issueFirst100"></option>
+            </select>
+          </label>
+          <div class="row">
+            <span data-i18n="adv.coverDates"></span>
+            <input type="date" name="cover_date_from"> – <input type="date" name="cover_date_to">
+          </div>
+          <label class="row"><span data-i18n="adv.cacheHours"></span> <input type="number" name="cache_hours" min="1" max="168"></label>
+        </fieldset>
+      </div>
+      <div class="row">
+        <button type="button" class="primary" data-act="save" data-i18n="adv.save"></button>
+        <button type="button" data-act="cancel" data-i18n="adv.cancel"></button>
+        <button type="button" data-act="probe" class="adv-only" data-i18n="adv.probe"></button>
+        <button type="button" data-act="clear-cache" class="adv-only" data-i18n="adv.clearCache"></button>
+        <small class="panel-msg"></small>
+      </div>
+      <div class="probe-out" hidden></div>
+    </div>
+  </template>
 
   <section class="card">
     <h2 data-i18n="display.title"></h2>

@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import threading
+import uuid
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("INKY_WEB_DATA", Path(__file__).resolve().parent.parent / "data"))
@@ -30,8 +31,10 @@ DEFAULT_CONFIG = {
     },
     "comics": {
         "api_key": "",
-        "queries": ["Weird Science"],
-        "random_volume": False,
+        # Each search: {"id", "term", "advanced", ...}; see comics.SEARCH_DEFAULTS
+        "searches": [{"id": "00000001", "term": "Weird Science"}],
+        "random_volume": False,  # simple searches: pick among the top 5 volumes
+        "rate_limit_per_hour": 150,  # own budget per Comic Vine resource (official: 200)
     },
     "display": {
         "fit": "contain",  # contain (letterbox) | fit (crop)
@@ -94,9 +97,26 @@ def ensure_dirs():
         d.mkdir(parents=True, exist_ok=True)
 
 
+def _migrate(raw):
+    """Upgrade configs saved by older versions. Returns True if changed."""
+    comics = raw.get("comics")
+    if isinstance(comics, dict) and "searches" not in comics and "queries" in comics:
+        comics["searches"] = [{"id": uuid.uuid4().hex[:8], "term": q.strip()} for q in comics.pop("queries") if q.strip()]
+        return True
+    return False
+
+
 def load_config():
     with _lock:
-        return _read(CONFIG_FILE, DEFAULT_CONFIG)
+        try:
+            raw = json.loads(CONFIG_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            raw = {}
+        migrated = _migrate(raw)
+        cfg = _merge(DEFAULT_CONFIG, raw)
+        if migrated:  # persist so migrated searches keep stable ids
+            _write(CONFIG_FILE, cfg)
+        return cfg
 
 
 def save_config(cfg):

@@ -55,7 +55,7 @@ function describe(state) {
   const d = state.last_detail;
   if (!d) return "—";
   if (state.last_source === "comics") {
-    const title = esc(`${d.volume} #${d.issue_number ?? "?"}`);
+    const title = esc(`${d.volume} #${d.issue_number ?? "?"}`) + (d.publisher ? ` · ${esc(d.publisher)}` : "");
     return d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${title}</a> (${esc(d.query)})` : title;
   }
   return esc(d.image);
@@ -135,22 +135,10 @@ function render(next) {
   // comics
   $("api-key").placeholder = cfg.comics.api_key_set ? t("comics.keySet", { hint: cfg.comics.api_key_hint }) : t("comics.keyUnset");
   $("random-volume").checked = cfg.comics.random_volume;
-  $("queries").replaceChildren(
-    ...cfg.comics.queries.map((q, i) => {
-      const li = document.createElement("li");
-      li.textContent = q;
-      const b = document.createElement("button");
-      b.type = "button";
-      b.title = t("comics.remove");
-      b.textContent = "×";
-      b.addEventListener("click", () => {
-        const queries = cfg.comics.queries.filter((_, j) => j !== i);
-        saveConfig({ comics: { queries } });
-      });
-      li.append(b);
-      return li;
-    })
-  );
+  if (document.activeElement !== $("rate-limit")) $("rate-limit").value = cfg.comics.rate_limit_per_hour;
+  const u = data.comics_meta.api_usage;
+  $("api-usage").textContent = t("comics.usage", { ...u, limit: cfg.comics.rate_limit_per_hour });
+  renderSearches(cfg);
 
   // display: staged until "Aplicar", like the mode section
   if (displayDirty) markDisplayDirty();
@@ -333,7 +321,7 @@ $("query-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const q = $("query-input").value.trim();
   if (!q) return;
-  saveConfig({ comics: { queries: [...data.config.comics.queries, q] } });
+  saveConfig({ comics: { searches: [...data.config.comics.searches, { term: q }] } });
   $("query-input").value = "";
 });
 
@@ -386,12 +374,218 @@ for (const b of document.querySelectorAll("[data-lang]")) {
     // messages from earlier actions were written in the old language
     for (const id of ["current-msg", "upload-msg", "preset-msg"]) $(id).textContent = "";
     updateChosen();
+    if (updateOpenPanel) updateOpenPanel();
     if (data) render(data);
   });
 }
 
 applyStaticI18n();
 updateChosen();
+
+// ---------- comic searches ----------
+// Each search is simple (just a term, like the Pimoroni example) or advanced
+// (source, paging, Comic Vine filter/sort, app-side filters, issue picking).
+// Only one panel is open at a time, and while it's open polling doesn't
+// rebuild the list, so the edits in progress survive.
+
+let openSearchId = null;
+let searchesKey = "";
+let updateOpenPanel = null; // re-renders dynamic texts of the open panel
+
+function searchSummary(s) {
+  if (!s.advanced) return "";
+  const parts = [s.volume_id ? `#${s.volume_id}` : s.source];
+  if (s.publishers.length) parts.push(s.publishers.join(", "));
+  if (s.year_from || s.year_to) parts.push(`${s.year_from || "…"}–${s.year_to || "…"}`);
+  if (s.min_issues) parts.push(`≥${s.min_issues}`);
+  if (s.cover_date_from || s.cover_date_to) parts.push(t("adv.coverShort", { from: s.cover_date_from || "…", to: s.cover_date_to || "…" }));
+  return parts.join(" · ");
+}
+
+function renderSearches(cfg) {
+  const key = lang + JSON.stringify(cfg.comics.searches);
+  if (openSearchId || key === searchesKey) return;
+  searchesKey = key;
+  $("searches").replaceChildren(...cfg.comics.searches.map(searchItem));
+}
+
+function forceRenderSearches() {
+  openSearchId = null;
+  updateOpenPanel = null;
+  searchesKey = "";
+  if (data) render(data);
+}
+
+function searchItem(s) {
+  const li = document.createElement("li");
+  li.dataset.id = s.id;
+  li.innerHTML = `
+    <div class="search-row">
+      <span class="search-term"></span>
+      <span class="badge" hidden></span>
+      <span class="search-summary"></span>
+      <button type="button" data-act="edit"></button>
+      <button type="button" data-act="remove" class="danger">×</button>
+    </div>`;
+  li.querySelector(".search-term").textContent = s.term || "—";
+  const badge = li.querySelector(".badge");
+  badge.hidden = !s.advanced;
+  badge.textContent = t("adv.badge");
+  li.querySelector(".search-summary").textContent = searchSummary(s);
+  const edit = li.querySelector("[data-act=edit]");
+  edit.textContent = t("adv.configure");
+  edit.addEventListener("click", () => openPanel(li, s));
+  const remove = li.querySelector("[data-act=remove]");
+  remove.title = t("comics.remove");
+  remove.addEventListener("click", () => {
+    if (s.advanced && !confirm(t("adv.confirmRemove", { term: s.term || `#${s.volume_id}` }))) return;
+    saveConfig({ comics: { searches: data.config.comics.searches.filter((x) => x.id !== s.id) } });
+  });
+  return li;
+}
+
+const LIST_FIELDS = ["publishers", "exclude_words"];
+const NUMBER_FIELDS = ["pages", "page_size", "volume_id", "year_from", "year_to", "min_issues", "cache_hours"];
+
+function fillPanel(panel, s) {
+  for (const el of panel.querySelectorAll("[name]")) {
+    const v = s[el.name];
+    if (el.type === "checkbox") el.checked = !!v;
+    else el.value = LIST_FIELDS.includes(el.name) ? (v || []).join(", ") : v ?? "";
+  }
+}
+
+function readPanel(panel, id) {
+  const s = { id };
+  for (const el of panel.querySelectorAll("[name]")) {
+    if (el.type === "checkbox") s[el.name] = el.checked;
+    else if (NUMBER_FIELDS.includes(el.name)) s[el.name] = el.value === "" ? null : Number(el.value);
+    else if (LIST_FIELDS.includes(el.name)) s[el.name] = el.value.split(",").map((w) => w.trim()).filter(Boolean);
+    else s[el.name] = el.value.trim() || (el.type === "date" ? null : "");
+  }
+  return s;
+}
+
+function updatePanel(panel) {
+  const meta = data.comics_meta;
+  const f = (name) => panel.querySelector(`[name=${name}]`);
+  const advanced = f("advanced").checked;
+  const source = f("source").value;
+  panel.querySelector(".adv-fields").hidden = !advanced;
+  for (const el of panel.querySelectorAll(".adv-only")) el.hidden = !advanced;
+  for (const el of panel.querySelectorAll(".vol-only")) el.hidden = source !== "volumes";
+  const max = meta.page_max[source];
+  f("page_size").max = max;
+  f("pages").max = meta.max_pages;
+  if (Number(f("page_size").value) > max) f("page_size").value = max;
+  const calls = f("volume_id").value ? 1 : Math.min(meta.max_pages, Math.max(1, Number(f("pages").value) || 1));
+  const size = Math.min(max, Math.max(1, Number(f("page_size").value) || max));
+  panel.querySelector(".cost").textContent = f("volume_id").value
+    ? t("adv.costFixed")
+    : t("adv.cost", { calls, results: calls * size, max });
+  panel.querySelector(".fields-hint").textContent =
+    source === "volumes" ? t("adv.fieldsHint", { fields: meta.volume_filter_fields.join(", ") }) : t("adv.searchHint");
+}
+
+function openPanel(li, s) {
+  if (openSearchId) {
+    // only one open panel: discard the other one and find this item again
+    forceRenderSearches();
+    li = $("searches").querySelector(`li[data-id="${s.id}"]`);
+  }
+  openSearchId = s.id;
+  const panel = $("search-panel-tpl").content.firstElementChild.cloneNode(true);
+  applyStaticI18n(panel);
+  fillPanel(panel, { ...data.comics_meta.search_defaults, ...s });
+  li.append(panel);
+  updateOpenPanel = () => updatePanel(panel);
+  updateOpenPanel();
+  panel.addEventListener("input", updateOpenPanel);
+  panel.addEventListener("change", updateOpenPanel);
+
+  const msg = panel.querySelector(".panel-msg");
+  const act = (name, fn) =>
+    panel.querySelector(`[data-act=${name}]`).addEventListener("click", async () => {
+      msg.textContent = "";
+      try {
+        await fn();
+      } catch (err) {
+        msg.textContent = errText(err);
+      }
+    });
+
+  act("save", async () => {
+    const edited = readPanel(panel, s.id);
+    const searches = data.config.comics.searches.map((x) => (x.id === s.id ? edited : x));
+    const next = await api("POST", "/api/config", { comics: { searches } });
+    openSearchId = null;
+    updateOpenPanel = null;
+    searchesKey = "";
+    render(next);
+  });
+  act("cancel", async () => forceRenderSearches());
+  act("probe", async () => {
+    const search = readPanel(panel, s.id);
+    const dry = await api("POST", "/api/comics/probe", { search, dry_run: true });
+    if (dry.would_call > 0 && !confirm(t("adv.confirmCalls", { n: dry.would_call }))) return;
+    msg.textContent = t("adv.probing");
+    const res = await api("POST", "/api/comics/probe", { search, dry_run: false });
+    msg.textContent = "";
+    showProbe(panel.querySelector(".probe-out"), res);
+    poll(); // refresh the API usage counter
+  });
+  act("clear-cache", async () => {
+    await api("POST", "/api/comics/cache/clear", { search: readPanel(panel, s.id) });
+    msg.textContent = t("adv.cacheCleared");
+  });
+}
+
+function showProbe(out, r) {
+  out.hidden = false;
+  const age = Math.round((Date.now() / 1000 - r.fetched_at) / 60);
+  const head = document.createElement("p");
+  head.textContent =
+    t("adv.probeSummary", { fetched: r.fetched, total: r.total ?? "?", passed: r.passed }) +
+    " · " +
+    (r.cached ? t("adv.fromCache", { minutes: age }) : t("adv.fresh", { calls: r.calls }));
+
+  const table = document.createElement("table");
+  table.className = "probe-table";
+  const hdr = table.insertRow();
+  for (const k of ["adv.colName", "adv.colYear", "adv.colPublisher", "adv.colIssues", "adv.colId"]) {
+    const th = document.createElement("th");
+    th.textContent = t(k);
+    hdr.append(th);
+  }
+  for (const c of r.candidates) {
+    const row = table.insertRow();
+    const name = row.insertCell();
+    if (c.url) {
+      const a = document.createElement("a");
+      a.href = c.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = c.name;
+      name.append(a);
+    } else name.textContent = c.name;
+    for (const v of [c.start_year, c.publisher, c.count_of_issues, c.id]) row.insertCell().textContent = v ?? "—";
+  }
+
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = t("adv.curl", { n: r.curl.length });
+  const pre = document.createElement("pre");
+  pre.textContent = r.curl.join("\n\n");
+  details.append(summary, pre);
+
+  const more = document.createElement("small");
+  more.className = "hint";
+  more.textContent = r.passed > r.candidates.length ? t("adv.moreRows", { n: r.passed - r.candidates.length }) : "";
+  out.replaceChildren(head, r.candidates.length ? table : "", more, details);
+}
+
+$("rate-limit").addEventListener("change", () =>
+  saveConfig({ comics: { rate_limit_per_hour: Number($("rate-limit").value) } }));
 
 // ---------- polling ----------
 
