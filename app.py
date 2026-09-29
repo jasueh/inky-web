@@ -152,6 +152,9 @@ def update_config():
     if "interval_minutes" in data:
         cfg["interval_minutes"] = max(config.MIN_INTERVAL_MINUTES, int(data["interval_minutes"]))
 
+    if "refresh_on_start" in data:
+        cfg["refresh_on_start"] = bool(data["refresh_on_start"])
+
     if "single_image" in data:
         name = data["single_image"]
         if name is not None and not valid_image_name(name):

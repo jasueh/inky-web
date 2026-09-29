@@ -6,6 +6,7 @@ Web UI ligera para controlar una **Pimoroni Inky Impression 13.3"** (Spectra 6, 
 - **Galería**: rotar entre las imágenes marcadas, en orden aleatorio o secuencial.
 - **Cómics random**: portadas al azar desde la API de [Comic Vine](https://comicvine.gamespot.com/api/) (adaptado del ejemplo `examples/spectra6/comics` de `pimoroni/inky`).
 - Frecuencia de rotación configurable (mínimo 2 min, un refresco completo tarda ~30-40 s).
+- No redibuja al iniciar la app (la tinta e-ink conserva la imagen): retoma la rotación desde el último refresco. Se puede activar "Refrescar al iniciar la app" en la sección Modo.
 - Gestión de imágenes: subir (varias a la vez), mostrar, borrar, incluir/excluir de la galería.
 - API key y lista de búsquedas de Comic Vine editables desde la UI.
 - Ajuste de pantalla: mantener aspect ratio con bordes o recortar, rotación automática de imágenes verticales, realce de color/contraste/brillo y saturación de paleta Inky. Por defecto no se realza nada (1.0 / 1.0 / 1.0, paleta 0.5, igual que los ejemplos de Pimoroni).

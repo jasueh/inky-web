@@ -22,6 +22,7 @@ MODES = ("single", "gallery", "comics")
 DEFAULT_CONFIG = {
     "mode": "single",
     "interval_minutes": 60,
+    "refresh_on_start": False,  # e-ink keeps its image; don't redraw on app start
     "single_image": None,
     "gallery": {
         "images": [],

@@ -17,6 +17,10 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _iso(ts):
+    return datetime.fromtimestamp(ts, timezone.utc).isoformat(timespec="seconds")
+
+
 class Scheduler:
     def __init__(self):
         self._wake = threading.Event()
@@ -24,6 +28,7 @@ class Scheduler:
         self._redraw_now = False
         self._refresh_lock = threading.Lock()
         self._next_at = None
+        self._base = None  # timestamp the rotation interval counts from
         self._thread = threading.Thread(target=self._run, name="scheduler", daemon=True)
 
     def start(self):
@@ -49,8 +54,17 @@ class Scheduler:
         return self._refresh_lock.locked()
 
     def _run(self):
-        # Refresh once on startup so the panel reflects the saved config.
-        self._refresh_now = True
+        cfg = config.load_config()
+        if cfg.get("refresh_on_start"):
+            self._refresh_now = True
+        else:
+            # The e-ink panel keeps its image without power, so don't redraw
+            # (or call Comic Vine) on startup. Resume the rotation from the last
+            # refresh, or wait a full interval if that time already passed.
+            last = self._last_refresh_ts()
+            now = time.time()
+            self._base = last if last and last + self._interval(cfg) > now else now
+            log.info("Startup without refresh; rotation resumes from %s", _iso(self._base))
         while True:
             cfg = config.load_config()
             if self._refresh_now:
@@ -63,7 +77,7 @@ class Scheduler:
                 self.redraw(cfg)
                 self._schedule_next(cfg, from_now=False)  # keep the rotation timing
             elif self._next_at is None:
-                self._schedule_next(cfg, from_now=True)
+                self._schedule_next(cfg, from_now=False)
             elif self._next_at and time.time() >= self._next_at:
                 self.refresh(cfg)
                 self._schedule_next(cfg, from_now=True)
@@ -74,20 +88,19 @@ class Scheduler:
             self._wake.wait(timeout)
             self._wake.clear()
 
+    @staticmethod
+    def _interval(cfg):
+        return max(config.MIN_INTERVAL_MINUTES, int(cfg["interval_minutes"])) * 60
+
     def _schedule_next(self, cfg, from_now):
+        """Next refresh = base + interval. from_now restarts the count (after a
+        refresh attempt, successful or not); otherwise the base is kept so an
+        interval change or a redraw doesn't move or re-trigger the rotation."""
+        if from_now or self._base is None:
+            self._base = time.time()
         rotating = cfg["mode"] in ("gallery", "comics")
-        if not rotating:
-            self._next_at = None
-        else:
-            interval = max(config.MIN_INTERVAL_MINUTES, int(cfg["interval_minutes"])) * 60
-            last = self._last_refresh_ts()
-            base = time.time() if from_now or last is None else last
-            self._next_at = base + interval
-        config.update_state(
-            next_refresh=datetime.fromtimestamp(self._next_at, timezone.utc).isoformat(timespec="seconds")
-            if self._next_at
-            else None
-        )
+        self._next_at = self._base + self._interval(cfg) if rotating else None
+        config.update_state(next_refresh=_iso(self._next_at) if self._next_at else None)
 
     def _last_refresh_ts(self):
         last = config.load_state().get("last_refresh")
