@@ -115,7 +115,7 @@ def status():
 def update_config():
     data = request.get_json(force=True) or {}
     cfg = config.load_config()
-    old = {k: cfg[k] for k in ("mode", "single_image")} | {"display": dict(cfg["display"])}
+    old = {k: cfg[k] for k in ("mode", "single_image")}
 
     if "mode" in data:
         if data["mode"] not in config.MODES:
@@ -161,10 +161,11 @@ def update_config():
 
     config.save_config(cfg)
 
-    # Show changes immediately when they affect what's on screen right now;
-    # otherwise just recompute the next rotation time.
+    # Show changes immediately when they change which image is on screen;
+    # otherwise just recompute the next rotation time. Display settings are
+    # applied through /api/redraw.
     changed_view = cfg["mode"] != old["mode"] or (
-        cfg["mode"] == "single" and (cfg["single_image"] != old["single_image"] or cfg["display"] != old["display"])
+        cfg["mode"] == "single" and cfg["single_image"] != old["single_image"]
     )
     if changed_view:
         scheduler.trigger()
@@ -176,6 +177,12 @@ def update_config():
 @app.post("/api/refresh")
 def refresh_now():
     scheduler.trigger()
+    return status()
+
+
+@app.post("/api/redraw")
+def redraw():
+    scheduler.request_redraw()
     return status()
 
 

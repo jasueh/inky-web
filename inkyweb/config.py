@@ -12,6 +12,7 @@ THUMBS_DIR = DATA_DIR / "thumbs"
 CONFIG_FILE = DATA_DIR / "config.json"
 STATE_FILE = DATA_DIR / "state.json"
 PREVIEW_FILE = DATA_DIR / "current.png"
+SOURCE_FILE = DATA_DIR / "current_source.png"  # original of what's on screen
 
 # A full refresh of the Spectra 6 panel takes ~30-40s; keep a safe margin.
 MIN_INTERVAL_MINUTES = 2
@@ -45,6 +46,7 @@ DEFAULT_CONFIG = {
 DEFAULT_STATE = {
     "gallery_index": 0,
     "last_refresh": None,
+    "rendered_at": None,  # last time the panel was drawn (refresh or redraw)
     "next_refresh": None,
     "last_source": None,
     "last_detail": None,

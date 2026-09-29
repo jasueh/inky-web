@@ -77,7 +77,8 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (visible 
 |---|---|---|
 | GET | `/api/status` | Config (sin API key), estado, lista de imágenes |
 | POST | `/api/config` | Actualización parcial de config (JSON) |
-| POST | `/api/refresh` | Refrescar ahora |
+| POST | `/api/refresh` | Refrescar ahora (siguiente imagen según el modo) |
+| POST | `/api/redraw` | Redibujar la imagen actual con los ajustes de pantalla vigentes |
 | POST | `/api/images` | Subir imágenes (`multipart`, campo `files`) |
 | DELETE | `/api/images/<name>` | Borrar imagen |
 | POST | `/api/images/<name>/show` | Pasar a modo imagen única con esa imagen |

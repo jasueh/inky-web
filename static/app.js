@@ -4,6 +4,7 @@ const SLIDERS = ["color", "contrast", "brightness", "saturation"];
 
 let data = null;
 let modeDirty = false;
+let displayDirty = false;
 
 function markModeDirty() {
   const cfg = data.config;
@@ -59,7 +60,7 @@ function render(next) {
   $("st-res").textContent = data.resolution.join("×");
   $("st-error").hidden = !state.last_error;
   $("st-error").textContent = state.last_error || "";
-  const ts = state.last_refresh || "";
+  const ts = state.rendered_at || state.last_refresh || "";
   if (ts !== $("preview").dataset.ts) {
     $("preview").dataset.ts = ts;
     if (ts) $("preview").src = `/preview.png?t=${encodeURIComponent(ts)}`;
@@ -126,15 +127,35 @@ function render(next) {
     })
   );
 
-  // display
-  $("fit").value = cfg.display.fit;
-  $("border").value = cfg.display.border;
-  $("auto-rotate").checked = cfg.display.auto_rotate;
-  for (const key of SLIDERS) {
-    const el = $(key);
-    if (document.activeElement !== el) el.value = cfg.display[key];
-    el.nextElementSibling.textContent = Number(el.value).toFixed(2);
+  // display: staged until "Aplicar", like the mode section
+  if (displayDirty) markDisplayDirty();
+  if (!displayDirty) {
+    $("fit").value = cfg.display.fit;
+    $("border").value = cfg.display.border;
+    $("auto-rotate").checked = cfg.display.auto_rotate;
+    for (const key of SLIDERS) $(key).value = cfg.display[key];
   }
+  for (const key of SLIDERS) $(key).nextElementSibling.textContent = Number($(key).value).toFixed(2);
+  setDisplayButtons();
+}
+
+function readDisplayForm() {
+  const d = { fit: $("fit").value, border: $("border").value, auto_rotate: $("auto-rotate").checked };
+  for (const key of SLIDERS) d[key] = Number($(key).value);
+  return d;
+}
+
+function markDisplayDirty() {
+  const form = readDisplayForm();
+  const cfg = data.config.display;
+  displayDirty = Object.keys(form).some((k) => form[k] !== cfg[k]);
+  setDisplayButtons();
+}
+
+function setDisplayButtons() {
+  $("display-apply").disabled = !displayDirty;
+  $("display-discard").disabled = !displayDirty;
+  $("display-pending").hidden = !displayDirty;
 }
 
 // ---------- preview rotation (UI only) ----------
@@ -238,14 +259,25 @@ $("query-form").addEventListener("submit", (e) => {
   $("query-input").value = "";
 });
 
-$("fit").addEventListener("change", () => saveConfig({ display: { fit: $("fit").value } }));
-$("border").addEventListener("change", () => saveConfig({ display: { border: $("border").value } }));
-$("auto-rotate").addEventListener("change", () => saveConfig({ display: { auto_rotate: $("auto-rotate").checked } }));
+for (const id of ["fit", "border", "auto-rotate"]) $(id).addEventListener("change", markDisplayDirty);
 for (const key of SLIDERS) {
   const el = $(key);
-  el.addEventListener("input", () => (el.nextElementSibling.textContent = Number(el.value).toFixed(2)));
-  el.addEventListener("change", () => saveConfig({ display: { [key]: Number(el.value) } }));
+  el.addEventListener("input", () => {
+    el.nextElementSibling.textContent = Number(el.value).toFixed(2);
+    markDisplayDirty();
+  });
 }
+
+$("display-apply").addEventListener("click", async () => {
+  const display = readDisplayForm();
+  displayDirty = false;
+  await saveConfig({ display });
+  render(await api("POST", "/api/redraw"));
+});
+$("display-discard").addEventListener("click", () => {
+  displayDirty = false;
+  render(data);
+});
 
 // ---------- polling ----------
 

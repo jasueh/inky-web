@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from . import comics, config, display
 
@@ -21,6 +21,7 @@ class Scheduler:
     def __init__(self):
         self._wake = threading.Event()
         self._refresh_now = False
+        self._redraw_now = False
         self._refresh_lock = threading.Lock()
         self._next_at = None
         self._thread = threading.Thread(target=self._run, name="scheduler", daemon=True)
@@ -32,6 +33,11 @@ class Scheduler:
     def trigger(self):
         """Refresh as soon as possible (config change or 'refresh now')."""
         self._refresh_now = True
+        self._wake.set()
+
+    def request_redraw(self):
+        """Redraw the image currently on screen with the current display settings."""
+        self._redraw_now = True
         self._wake.set()
 
     def reschedule(self):
@@ -49,8 +55,13 @@ class Scheduler:
             cfg = config.load_config()
             if self._refresh_now:
                 self._refresh_now = False
+                self._redraw_now = False  # a full refresh already uses the latest settings
                 self.refresh(cfg)
                 self._schedule_next(cfg, from_now=True)
+            elif self._redraw_now:
+                self._redraw_now = False
+                self.redraw(cfg)
+                self._schedule_next(cfg, from_now=False)  # keep the rotation timing
             elif self._next_at is None:
                 self._schedule_next(cfg, from_now=True)
             elif self._next_at and time.time() >= self._next_at:
@@ -83,21 +94,47 @@ class Scheduler:
         return datetime.fromisoformat(last).timestamp() if last else None
 
     def refresh(self, cfg):
+        """Pick the next image for the current mode and show it."""
+
+        def run():
+            img, source, detail = self._pick(cfg)
+            if img is None:
+                return
+            # Keep the original so it can be redrawn with other display settings.
+            # Bake in the EXIF orientation (PNG drops it) and normalise the mode.
+            img = ImageOps.exif_transpose(img).convert("RGB")
+            img.save(config.SOURCE_FILE)
+            rotated = display.show(img, cfg["display"])
+            now = _now()
+            config.update_state(
+                last_refresh=now, rendered_at=now, last_source=source, last_detail=detail, preview_rotated=rotated
+            )
+
+        self._locked("Refresh", run)
+
+    def redraw(self, cfg):
+        """Show the current image again, e.g. after changing display settings."""
+
+        def run():
+            if not config.SOURCE_FILE.exists():
+                raise ValueError("No hay imagen actual para redibujar; esperá al próximo refresco")
+            with Image.open(config.SOURCE_FILE) as img:
+                img.load()
+                rotated = display.show(img, cfg["display"])
+            config.update_state(rendered_at=_now(), preview_rotated=rotated)
+
+        self._locked("Redraw", run)
+
+    def _locked(self, what, fn):
         if not self._refresh_lock.acquire(blocking=False):
-            log.info("Refresh already in progress, skipping")
+            log.info("%s skipped: panel update already in progress", what)
             return
         config.update_state(busy=True)
         try:
-            img, source, detail = self._pick(cfg)
-            if img is None:
-                config.update_state(last_error=None)
-                return
-            rotated = display.show(img, cfg["display"])
-            config.update_state(
-                last_refresh=_now(), last_source=source, last_detail=detail, last_error=None, preview_rotated=rotated
-            )
+            fn()
+            config.update_state(last_error=None)
         except Exception as e:
-            log.exception("Refresh failed")
+            log.exception("%s failed", what)
             config.update_state(last_error=f"{_now()}: {e}")
         finally:
             config.update_state(busy=False)

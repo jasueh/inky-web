@@ -120,7 +120,12 @@
       <label>Brillo <input type="range" id="brightness" min="0" max="3" step="0.05"><output></output></label>
       <label>Paleta Inky (saturation) <input type="range" id="saturation" min="0" max="1" step="0.05"><output></output></label>
     </div>
-    <p class="hint">En modo Imagen única los cambios se aplican al instante; en los otros modos, en el próximo refresco.</p>
+    <p class="hint">Aplicar vuelve a dibujar la imagen que está en pantalla con estos valores, para comparar. No cambia el horario de rotación.</p>
+    <div class="row">
+      <button type="button" id="display-apply" class="primary" disabled>Aplicar</button>
+      <button type="button" id="display-discard" disabled>Descartar</button>
+      <small id="display-pending" class="pending" hidden>Cambios sin aplicar</small>
+    </div>
   </section>
 </main>
 
