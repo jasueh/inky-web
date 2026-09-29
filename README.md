@@ -8,7 +8,7 @@ Web UI ligera para controlar una **Pimoroni Inky Impression 13.3"** (Spectra 6, 
 - Frecuencia de rotación configurable (mínimo 2 min, un refresco completo tarda ~30-40 s).
 - Gestión de imágenes: subir (varias a la vez), mostrar, borrar, incluir/excluir de la galería.
 - API key y lista de búsquedas de Comic Vine editables desde la UI.
-- Ajuste de pantalla: mantener aspect ratio con bordes o recortar, rotación automática de imágenes verticales, realce de color/contraste/brillo y saturación de paleta Inky.
+- Ajuste de pantalla: mantener aspect ratio con bordes o recortar, rotación automática de imágenes verticales, realce de color/contraste/brillo y saturación de paleta Inky. Por defecto no se realza nada (1.0 / 1.0 / 1.0, paleta 0.5, igual que los ejemplos de Pimoroni).
 
 Sin autenticación: pensado para uso en LAN.
 

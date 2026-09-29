@@ -36,10 +36,10 @@ DEFAULT_CONFIG = {
         "fit": "contain",  # contain (letterbox) | fit (crop)
         "auto_rotate": True,
         "border": "white",  # white | black
-        "color": 1.5,
-        "contrast": 1.2,
+        "color": 1.0,  # neutral: same as the Pimoroni examples (no enhancement)
+        "contrast": 1.0,
         "brightness": 1.0,
-        "saturation": 1.0,
+        "saturation": 0.5,  # inky set_image() default
     },
 }
 
