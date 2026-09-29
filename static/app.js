@@ -149,6 +149,42 @@ function render(next) {
   }
   for (const key of SLIDERS) $(key).nextElementSibling.textContent = Number($(key).value).toFixed(2);
   setDisplayButtons();
+  renderPresets(cfg.display_presets);
+}
+
+function renderPresets(presets) {
+  const names = Object.keys(presets);
+  $("presets-empty").hidden = names.length > 0;
+  $("presets").replaceChildren(
+    ...names.map((name) => {
+      const p = presets[name];
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span class="preset-name"></span>
+        <span class="preset-values">color ${p.color.toFixed(2)} · contraste ${p.contrast.toFixed(2)} · brillo ${p.brightness.toFixed(2)} · paleta ${p.saturation.toFixed(2)}</span>
+        <button type="button" data-act="load">Cargar</button>
+        <button type="button" data-act="delete" class="danger" title="Borrar perfil">×</button>`;
+      li.querySelector(".preset-name").textContent = name;
+      li.querySelector("[data-act=load]").addEventListener("click", () => loadIntoForm(p));
+      li.querySelector("[data-act=delete]").addEventListener("click", async () => {
+        if (confirm(`¿Borrar el perfil "${name}"?`))
+          render(await api("DELETE", `/api/presets/${encodeURIComponent(name)}`));
+      });
+      return li;
+    })
+  );
+}
+
+// Put values into the display form as a pending change (still needs Aplicar).
+function loadIntoForm(values) {
+  for (const id of ["fit", "border"]) if (id in values) $(id).value = values[id];
+  if ("auto_rotate" in values) $("auto-rotate").checked = values.auto_rotate;
+  for (const key of SLIDERS) {
+    if (!(key in values)) continue;
+    $(key).value = values[key];
+    $(key).nextElementSibling.textContent = Number(values[key]).toFixed(2);
+  }
+  markDisplayDirty();
 }
 
 function readDisplayForm() {
@@ -299,16 +335,22 @@ $("display-discard").addEventListener("click", () => {
   displayDirty = false;
   render(data);
 });
-$("display-defaults").addEventListener("click", () => {
-  const d = data.display_defaults;
-  $("fit").value = d.fit;
-  $("border").value = d.border;
-  $("auto-rotate").checked = d.auto_rotate;
-  for (const key of SLIDERS) {
-    $(key).value = d[key];
-    $(key).nextElementSibling.textContent = Number(d[key]).toFixed(2);
+$("display-defaults").addEventListener("click", () => loadIntoForm(data.display_defaults));
+
+$("preset-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("preset-name").value.trim();
+  if (!name) return;
+  if (name in data.config.display_presets && !confirm(`Ya existe "${name}". ¿Sobrescribirlo?`)) return;
+  const form = readDisplayForm();
+  const values = Object.fromEntries(SLIDERS.map((k) => [k, form[k]]));
+  try {
+    render(await api("POST", "/api/presets", { name, values }));
+    $("preset-name").value = "";
+    $("preset-msg").textContent = `Perfil "${name}" guardado`;
+  } catch (err) {
+    $("preset-msg").textContent = err.message;
   }
-  markDisplayDirty(); // staged: still needs Aplicar
 });
 
 // ---------- polling ----------

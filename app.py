@@ -182,7 +182,7 @@ def update_config():
             cd["border"] = d["border"]
         if "auto_rotate" in d:
             cd["auto_rotate"] = bool(d["auto_rotate"])
-        for key, lo, hi in (("color", 0, 3), ("contrast", 0, 3), ("brightness", 0, 3), ("saturation", 0, 1)):
+        for key, (lo, hi) in config.ADJUSTMENTS.items():
             if key in d:
                 cd[key] = clamp(d[key], lo, hi)
 
@@ -198,6 +198,33 @@ def update_config():
         scheduler.trigger()
     else:
         scheduler.reschedule()
+    return status()
+
+
+@app.post("/api/presets")
+def save_preset():
+    """Save (or overwrite) a named set of image adjustments."""
+    body = request.get_json(force=True) or {}
+    name = str(body.get("name") or "").strip()
+    if not name or len(name) > config.PRESET_NAME_MAX:
+        abort(400, f"El nombre debe tener entre 1 y {config.PRESET_NAME_MAX} caracteres")
+    values = body.get("values") or {}
+    try:
+        preset = {k: clamp(values[k], lo, hi) for k, (lo, hi) in config.ADJUSTMENTS.items()}
+    except (KeyError, TypeError, ValueError):
+        abort(400, "Faltan valores o no son números")
+    cfg = config.load_config()
+    cfg["display_presets"][name] = preset
+    config.save_config(cfg)
+    return status()
+
+
+@app.delete("/api/presets/<path:name>")
+def delete_preset(name):
+    cfg = config.load_config()
+    if cfg["display_presets"].pop(name, None) is None:
+        abort(404, "Perfil inexistente")
+    config.save_config(cfg)
     return status()
 
 

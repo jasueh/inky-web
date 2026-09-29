@@ -41,7 +41,13 @@ DEFAULT_CONFIG = {
         "brightness": 1.0,
         "saturation": 0.5,  # inky set_image() default
     },
+    # name -> {color, contrast, brightness, saturation}
+    "display_presets": {},
 }
+
+# Image adjustments stored in presets, with their allowed ranges.
+ADJUSTMENTS = {"color": (0, 3), "contrast": (0, 3), "brightness": (0, 3), "saturation": (0, 1)}
+PRESET_NAME_MAX = 40
 
 DEFAULT_STATE = {
     "gallery_index": 0,
@@ -61,7 +67,8 @@ _lock = threading.RLock()
 def _merge(defaults, data):
     out = copy.deepcopy(defaults)
     for key, value in (data or {}).items():
-        if key in out and isinstance(out[key], dict) and isinstance(value, dict):
+        # An empty default dict is a free-form map (e.g. presets): take it as is.
+        if key in out and isinstance(out[key], dict) and out[key] and isinstance(value, dict):
             out[key] = _merge(out[key], value)
         elif key in out:
             out[key] = value

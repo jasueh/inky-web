@@ -132,6 +132,16 @@
       <button type="button" id="display-defaults" title="Sin realce: color, contraste y brillo 1.0, paleta 0.5 (default de la librería inky)">Valores de Pimoroni</button>
       <small id="display-pending" class="pending" hidden>Cambios sin aplicar</small>
     </div>
+
+    <h3>Perfiles</h3>
+    <p class="hint">Guardan color, contraste, brillo y paleta. Cargar un perfil lo deja pendiente: después Aplicar.</p>
+    <ul id="presets" class="presets"></ul>
+    <p id="presets-empty" class="hint" hidden>Todavía no hay perfiles guardados.</p>
+    <form id="preset-form" class="row">
+      <input type="text" id="preset-name" maxlength="40" placeholder="Nombre del perfil (ej: Phantom)">
+      <button type="submit">Guardar valores actuales</button>
+      <small id="preset-msg"></small>
+    </form>
   </section>
 </main>
 
