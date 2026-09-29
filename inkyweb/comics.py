@@ -1,5 +1,8 @@
 """Random comic covers from the Comic Vine API.
 
+Adapted from pimoroni/inky examples/spectra6/comics/comic.py
+(Copyright (c) 2018 Pimoroni Ltd., MIT License; see THIRD_PARTY_NOTICES.md).
+
 Each configured search is either:
 
 - simple: the behaviour of pimoroni/inky examples/spectra6/comics/comic.py —

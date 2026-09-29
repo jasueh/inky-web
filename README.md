@@ -162,3 +162,10 @@ data/                   (not versioned) images, thumbnails, config, state, cache
 | POST | `/api/comics/cache/clear` | Clear a search's cache (`{"search": {...}}`) |
 
 API errors are returned as `{"error": {"code": ..., "params": {...}, "message": ...}}`. The UI translates `code` (see `static/i18n.js`) and falls back to `message` (English).
+
+## License and credits
+
+- The code is released under the [MIT License](LICENSE) © 2026 jasueh.
+- `inkyweb/comics.py` is adapted from the Comic Vine example in [pimoroni/inky](https://github.com/pimoroni/inky) (MIT, © Pimoroni Ltd.). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Comic data and cover images come from the [Comic Vine API](https://comicvine.gamespot.com/api/) at runtime, using your own API key. They are not included in this repository and belong to their respective owners. The Comic Vine API is for non-commercial use only.
+- This project is not affiliated with or endorsed by Pimoroni, Comic Vine or Fandom.

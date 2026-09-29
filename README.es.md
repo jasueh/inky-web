@@ -162,3 +162,10 @@ data/                   (no versionado) imágenes, miniaturas, config, estado, c
 | POST | `/api/comics/cache/clear` | Vaciar el caché de una búsqueda (`{"search": {...}}`) |
 
 Los errores de la API se devuelven como `{"error": {"code": ..., "params": {...}, "message": ...}}`. La web traduce `code` (ver `static/i18n.js`) y usa `message` (en inglés) como respaldo.
+
+## Licencia y créditos
+
+- El código se publica bajo la [licencia MIT](LICENSE) © 2026 jasueh.
+- `inkyweb/comics.py` está adaptado del ejemplo de Comic Vine de [pimoroni/inky](https://github.com/pimoroni/inky) (MIT, © Pimoroni Ltd.). Ver [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Los datos y las portadas vienen de la [API de Comic Vine](https://comicvine.gamespot.com/api/) en tiempo de ejecución, con tu propia API key. No están incluidos en este repositorio y pertenecen a sus respectivos dueños. La API de Comic Vine es solo para uso no comercial.
+- Este proyecto no está afiliado ni avalado por Pimoroni, Comic Vine ni Fandom.
