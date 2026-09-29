@@ -3,10 +3,12 @@
 import logging
 import os
 import uuid
+from io import BytesIO
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
+from flask import Flask, abort, jsonify, render_template, request, send_file, send_from_directory
 from PIL import Image, ImageOps, UnidentifiedImageError
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 from inkyweb import config, display
@@ -25,6 +27,13 @@ app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 
 config.ensure_dirs()
 scheduler = Scheduler()
+
+
+@app.errorhandler(HTTPException)
+def api_error(e):
+    if request.path.startswith("/api/"):
+        return jsonify(error=e.description), e.code
+    return e
 
 
 # ---------- helpers ----------
@@ -73,6 +82,16 @@ def clamp(value, lo, hi):
     return max(lo, min(hi, float(value)))
 
 
+def current_basename(state):
+    """A readable file name (no extension) for the image on screen."""
+    detail = state.get("last_detail") or {}
+    if state.get("last_source") == "comics":
+        base = f"{detail.get('volume', 'comic')} {detail.get('issue_number') or ''}"
+    else:
+        base = Path(detail.get("image") or "inky").stem
+    return secure_filename(base.strip()) or "inky"
+
+
 # ---------- pages & files ----------
 
 @app.get("/")
@@ -102,9 +121,16 @@ def preview():
 @app.get("/api/status")
 def status():
     images = list_images()
+    state = config.load_state()
+    saved_as = (state.get("last_detail") or {}).get("saved_as")
     return jsonify(
         config=public_config(config.load_config()),
-        state={**config.load_state(), "busy": scheduler.busy},
+        state={
+            **state,
+            "busy": scheduler.busy,
+            "has_source": config.SOURCE_FILE.exists(),
+            "saved": bool(saved_as) and valid_image_name(saved_as),
+        },
         images=[{"name": n, "thumb": f"/thumbs/{thumb_name(n)}"} for n in images],
         display_defaults=config.DEFAULT_CONFIG["display"],
         resolution=display.resolution(),
@@ -184,6 +210,53 @@ def refresh_now():
 @app.post("/api/redraw")
 def redraw():
     scheduler.request_redraw()
+    return status()
+
+
+@app.get("/current/download")
+def download_current():
+    if not config.SOURCE_FILE.exists():
+        abort(404)
+    if scheduler.busy:
+        abort(409, "La pantalla se está actualizando; esperá a que termine")
+    buf = BytesIO()
+    with Image.open(config.SOURCE_FILE) as img:
+        img.convert("RGB").save(buf, "JPEG", quality=95)
+    buf.seek(0)
+    name = current_basename(config.load_state()) + ".jpg"
+    return send_file(buf, mimetype="image/jpeg", as_attachment=True, download_name=name)
+
+
+@app.post("/api/current/save")
+def save_current():
+    """Save the comic cover on screen into the image library and gallery."""
+    body = request.get_json(silent=True) or {}
+    if scheduler.busy:  # current_source.png may already hold the next image
+        abort(409, "La pantalla se está actualizando; esperá a que termine")
+    state = config.load_state()
+    if state.get("last_source") != "comics":
+        abort(400, "Solo se pueden guardar portadas de cómics")
+    # Guard against a rotation between what the user saw and this request.
+    if body.get("last_refresh") != state.get("last_refresh"):
+        abort(409, "La imagen en pantalla cambió; revisá y volvé a intentar")
+    if not config.SOURCE_FILE.exists():
+        abort(404, "No hay imagen actual guardada")
+
+    detail = state.get("last_detail") or {}
+    if detail.get("saved_as") and valid_image_name(detail["saved_as"]):
+        return status()
+
+    name = unique_name(current_basename(state) + ".jpg")
+    with Image.open(config.SOURCE_FILE) as img:
+        img.convert("RGB").save(config.IMAGES_DIR / name, "JPEG", quality=95)
+    make_thumb(name)
+
+    cfg = config.load_config()
+    if name not in cfg["gallery"]["images"]:
+        cfg["gallery"]["images"].append(name)
+        config.save_config(cfg)
+    config.update_state(last_detail={**detail, "saved_as": name})
+    log.info("Saved comic cover as %s", name)
     return status()
 
 

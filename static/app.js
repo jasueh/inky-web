@@ -23,7 +23,10 @@ async function api(method, url, body) {
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `${res.status} ${res.statusText}`);
+  }
   return res.json();
 }
 
@@ -66,6 +69,15 @@ function render(next) {
     if (ts) $("preview").src = `/preview.png?t=${encodeURIComponent(ts)}`;
   }
   applyPreviewRotation();
+
+  // save / download what's on screen (disabled mid-refresh: the source file
+  // may already hold the next image)
+  const isComic = state.last_source === "comics" && state.has_source;
+  $("btn-save-current").hidden = !isComic;
+  $("btn-save-current").disabled = state.saved || state.busy;
+  $("btn-save-current").textContent = state.saved ? "Guardada ✓" : "Guardar en galería";
+  $("btn-download").hidden = !state.has_source || state.busy;
+  $("btn-download").href = `/current/download?t=${encodeURIComponent(ts)}`;
 
   // mode: staged until "Aplicar", so polling must not overwrite a pending edit
   if (modeDirty) markModeDirty(); // re-check against the fresh config
@@ -204,6 +216,15 @@ function toggleGallery(name, on) {
 // ---------- events ----------
 
 $("btn-refresh").addEventListener("click", async () => render(await api("POST", "/api/refresh")));
+$("btn-save-current").addEventListener("click", async () => {
+  $("current-msg").textContent = "";
+  try {
+    render(await api("POST", "/api/current/save", { last_refresh: data.state.last_refresh }));
+    $("current-msg").textContent = "Guardada en la galería";
+  } catch (err) {
+    $("current-msg").textContent = err.message;
+  }
+});
 $("rot-left").addEventListener("click", () => setRotOffset(rotOffset - 90));
 $("rot-right").addEventListener("click", () => setRotOffset(rotOffset + 90));
 $("rot-reset").addEventListener("click", () => setRotOffset(0));

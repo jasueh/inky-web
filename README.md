@@ -82,3 +82,5 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (visible 
 | POST | `/api/images` | Subir imágenes (`multipart`, campo `files`) |
 | DELETE | `/api/images/<name>` | Borrar imagen |
 | POST | `/api/images/<name>/show` | Pasar a modo imagen única con esa imagen |
+| POST | `/api/current/save` | Guardar la portada de cómic en pantalla en la galería (`{"last_refresh": ...}`) |
+| GET | `/current/download` | Descargar el original de la imagen en pantalla (JPEG) |
