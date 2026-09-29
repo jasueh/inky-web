@@ -3,6 +3,16 @@ const MODE_LABELS = { single: "Imagen única", gallery: "Galería", comics: "Có
 const SLIDERS = ["color", "contrast", "brightness", "saturation"];
 
 let data = null;
+let modeDirty = false;
+
+function markModeDirty() {
+  const cfg = data.config;
+  const mode = document.querySelector("input[name=mode]:checked")?.value;
+  modeDirty = mode !== cfg.mode || String($("interval").value) !== String(cfg.interval_minutes);
+  $("mode-apply").disabled = !modeDirty;
+  $("mode-discard").disabled = !modeDirty;
+  $("mode-pending").hidden = !modeDirty;
+}
 
 async function api(method, url, body) {
   const opts = { method };
@@ -56,11 +66,17 @@ function render(next) {
   }
   applyPreviewRotation();
 
-  // mode
-  document.querySelector(`input[name=mode][value=${cfg.mode}]`).checked = true;
-  if (document.activeElement !== $("interval")) $("interval").value = cfg.interval_minutes;
+  // mode: staged until "Aplicar", so polling must not overwrite a pending edit
+  if (modeDirty) markModeDirty(); // re-check against the fresh config
+  if (!modeDirty) {
+    document.querySelector(`input[name=mode][value=${cfg.mode}]`).checked = true;
+    $("interval").value = cfg.interval_minutes;
+  }
   $("interval").min = data.min_interval;
   $("interval-hint").textContent = `(mínimo ${data.min_interval})`;
+  $("mode-apply").disabled = !modeDirty;
+  $("mode-discard").disabled = !modeDirty;
+  $("mode-pending").hidden = !modeDirty;
 
   // images
   $("gallery-order").value = cfg.gallery.order;
@@ -171,12 +187,18 @@ $("rot-left").addEventListener("click", () => setRotOffset(rotOffset - 90));
 $("rot-right").addEventListener("click", () => setRotOffset(rotOffset + 90));
 $("rot-reset").addEventListener("click", () => setRotOffset(0));
 
-document.querySelectorAll("input[name=mode]").forEach((el) =>
-  el.addEventListener("change", () => saveConfig({ mode: el.value })));
+document.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", markModeDirty));
+$("interval").addEventListener("input", markModeDirty);
 
-$("interval").addEventListener("change", () => {
-  const v = Math.max(data.min_interval, parseInt($("interval").value, 10) || data.min_interval);
-  saveConfig({ interval_minutes: v });
+$("mode-apply").addEventListener("click", async () => {
+  const mode = document.querySelector("input[name=mode]:checked").value;
+  const interval = Math.max(data.min_interval, parseInt($("interval").value, 10) || data.min_interval);
+  modeDirty = false;
+  await saveConfig({ mode, interval_minutes: interval });
+});
+$("mode-discard").addEventListener("click", () => {
+  modeDirty = false;
+  render(data);
 });
 
 $("upload-form").addEventListener("submit", async (e) => {
