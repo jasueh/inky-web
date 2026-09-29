@@ -49,9 +49,10 @@ function render(next) {
   $("st-res").textContent = data.resolution.join("×");
   $("st-error").hidden = !state.last_error;
   $("st-error").textContent = state.last_error || "";
-  if (state.last_refresh !== $("preview").dataset.ts) {
-    $("preview").dataset.ts = state.last_refresh;
-    $("preview").src = `/preview.png?t=${encodeURIComponent(state.last_refresh || Date.now())}`;
+  const ts = state.last_refresh || "";
+  if (ts !== $("preview").dataset.ts) {
+    $("preview").dataset.ts = ts;
+    if (ts) $("preview").src = `/preview.png?t=${encodeURIComponent(ts)}`;
   }
 
   // mode

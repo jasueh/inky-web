@@ -14,6 +14,8 @@ from inkyweb.scheduler import Scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("inky-web")
+# The UI polls /api/status every few seconds; keep request lines out of the journal.
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 THUMB_SIZE = (400, 300)
