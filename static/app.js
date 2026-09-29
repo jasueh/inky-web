@@ -430,6 +430,7 @@ function searchItem(s) {
   li.dataset.id = s.id;
   li.innerHTML = `
     <div class="search-row">
+      <input type="checkbox" data-act="toggle">
       <span class="search-term"></span>
       <span class="badge" hidden></span>
       <span class="search-summary"></span>
@@ -437,6 +438,17 @@ function searchItem(s) {
       <button type="button" data-act="remove" class="danger">×</button>
     </div>`;
   li.querySelector(".search-term").textContent = searchLabel(s);
+  const enabled = s.enabled !== false;
+  li.classList.toggle("disabled", !enabled);
+  const toggle = li.querySelector("[data-act=toggle]");
+  toggle.checked = enabled;
+  toggle.title = t(enabled ? "adv.disableTitle" : "adv.enableTitle");
+  toggle.addEventListener("change", () =>
+    saveConfig({
+      comics: {
+        searches: data.config.comics.searches.map((x) => (x.id === s.id ? { ...x, enabled: toggle.checked } : x)),
+      },
+    }));
   const badge = li.querySelector(".badge");
   badge.hidden = !s.advanced;
   badge.textContent = t("adv.badge");
@@ -539,7 +551,9 @@ function openPanel(li, s) {
     });
 
   act("save", async () => {
-    const edited = readPanel(panel, s.id);
+    const current = data.config.comics.searches.find((x) => x.id === s.id);
+    // the panel doesn't edit "enabled": keep whatever the row checkbox says
+    const edited = { ...readPanel(panel, s.id), enabled: current ? current.enabled !== false : true };
     const searches = data.config.comics.searches.map((x) => (x.id === s.id ? edited : x));
     const next = await api("POST", "/api/config", { comics: { searches } });
     openSearchId = null;

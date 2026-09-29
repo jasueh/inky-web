@@ -117,7 +117,7 @@ const I18N = {
     "err.no_issues": "No se encontraron números para el volumen {volume}",
     "comics.budget": "Tope de llamadas por hora a Comic Vine (por endpoint)",
     "comics.usage": "Última hora: search {search} · volumes {volumes} · issues {issues} (tope {limit}, oficial 200)",
-    "comics.searchesHint": "Simples: como el ejemplo de Pimoroni. Configurar → Búsqueda avanzada para filtros, paginado y más.",
+    "comics.searchesHint": "La casilla activa o desactiva cada búsqueda sin perder su configuración. Simples: como el ejemplo de Pimoroni. Configurar → Búsqueda avanzada para filtros, paginado y más.",
     "adv.badge": "Avanzada",
     "adv.configure": "Configurar",
     "adv.enable": "Búsqueda avanzada",
@@ -193,6 +193,9 @@ const I18N = {
     "err.jq_error": "Error de jq: {detail}",
     "err.jq_not_list": "La expresión jq tiene que devolver una sola lista",
     "adv.probeSummaryIssues": "{fetched} números traídos (de {total} en Comic Vine) · {passed} pasan los filtros",
+    "adv.enableTitle": "Desactivada: marcá para volver a usarla (conserva su configuración)",
+    "adv.disableTitle": "Activa: desmarcá para no usarla por ahora (conserva su configuración)",
+    "err.no_enabled_searches": "Todas las búsquedas están desactivadas; activá al menos una",
   },
 
   en: {
@@ -309,7 +312,7 @@ const I18N = {
     "err.no_issues": "No issues found for volume {volume}",
     "comics.budget": "Comic Vine calls per hour cap (per endpoint)",
     "comics.usage": "Last hour: search {search} · volumes {volumes} · issues {issues} (cap {limit}, official 200)",
-    "comics.searchesHint": "Simple: like the Pimoroni example. Configure → Advanced search for filters, paging and more.",
+    "comics.searchesHint": "The checkbox turns each search on or off without losing its configuration. Simple: like the Pimoroni example. Configure → Advanced search for filters, paging and more.",
     "adv.badge": "Advanced",
     "adv.configure": "Configure",
     "adv.enable": "Advanced search",
@@ -385,6 +388,9 @@ const I18N = {
     "err.jq_error": "jq error: {detail}",
     "err.jq_not_list": "The jq expression must return a single list",
     "adv.probeSummaryIssues": "{fetched} issues fetched (of {total} on Comic Vine) · {passed} pass the filters",
+    "adv.enableTitle": "Disabled: tick to use it again (keeps its configuration)",
+    "adv.disableTitle": "Enabled: untick to stop using it for now (keeps its configuration)",
+    "err.no_enabled_searches": "All searches are disabled; enable at least one",
   },
 };
 

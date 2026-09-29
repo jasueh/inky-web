@@ -77,6 +77,7 @@ SEARCH_DEFAULTS = {
     "issue_pick": "random_all",  # random_all | first100
     "cache_hours": 24,
     "jq": "",  # optional jq expression applied to the candidate list
+    "enabled": True,  # disabled searches keep their config but aren't used
 }
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -120,6 +121,7 @@ def normalize_search(item):
     s["id"] = item.get("id") if _ID.match(str(item.get("id", ""))) else uuid.uuid4().hex[:8]
     s["term"] = str(s["term"] or "").strip()[:100]
     s["advanced"] = bool(s["advanced"])
+    s["enabled"] = bool(s["enabled"])
     s["source"] = s["source"] if s["source"] in PAGE_MAX else "search"
     s["cv_filter"] = str(s["cv_filter"] or "").strip()
     s["sort"] = str(s["sort"] or "").strip()
@@ -423,8 +425,11 @@ def fetch_random_cover(comics_cfg):
         raise UserError("api_key_missing", "Comic Vine API key is not set")
     if not searches:
         raise UserError("no_queries", "No search queries configured")
+    enabled = [x for x in searches if x.get("enabled", True)]
+    if not enabled:
+        raise UserError("no_enabled_searches", "All searches are disabled; enable at least one")
 
-    s = {**SEARCH_DEFAULTS, **random.choice(searches)}
+    s = {**SEARCH_DEFAULTS, **random.choice(enabled)}
     budget = _budget(comics_cfg)
     if s["advanced"]:
         volume, issue = _advanced(api_key, s, budget)
