@@ -32,7 +32,7 @@ There is no authentication: it is meant for use on your LAN only.
   - **Source:** `search` (relevance text search), `volumes` (filter by name) or `issues` (issues directly, e.g. every cover in a date range).
   - **Comic Vine query:** filter and sort (only on the fields the API accepts), and configurable pages × page size.
   - **App-side filters:** publishers, volume start year, minimum issue count and excluded title words.
-  - **Picking:** a fixed volume by ID, a cover date range, and the issue picked among **all** of the volume's issues.
+  - **Picking:** a fixed volume by ID, a cover date range, and the issue picked at random among **all** of the volume's issues, or **in order** (#1 → last, then back to #1; the position survives restarts, with "Back to #1" to restart). In order, refreshes make no API calls while the issue list is cached.
   - **Optional jq expression** applied to the candidate list.
 - **Cache:** each advanced search's candidate list is cached (24 h by default, in `data/cache/`). Changing app-side filters or jq costs no API calls.
 - **Test:** shows the candidates and the equivalent `curl`, and asks before spending calls.
@@ -158,6 +158,7 @@ data/                   (not versioned) images, thumbnails, config, state, cache
 | POST | `/api/presets` | Save / overwrite a preset (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
 | DELETE | `/api/presets/<name>` | Delete a preset |
 | POST | `/api/comics/probe` | Test an advanced search (`{"search": {...}, "dry_run": true}` only reports how many calls it would make) |
+| POST | `/api/comics/sequence/reset` | Restart a search's sequential picking from #1 (`{"id": ...}`) |
 | POST | `/api/comics/cache/clear` | Clear a search's cache (`{"search": {...}}`) |
 
 API errors are returned as `{"error": {"code": ..., "params": {...}, "message": ...}}`. The UI translates `code` (see `static/i18n.js`) and falls back to `message` (English).

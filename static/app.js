@@ -139,6 +139,7 @@ function render(next) {
   const u = data.comics_meta.api_usage;
   $("api-usage").textContent = t("comics.usage", { ...u, limit: cfg.comics.rate_limit_per_hour });
   renderSearches(cfg);
+  if (updateOpenPanel) updateOpenPanel();
 
   // display: staged until "Aplicar", like the mode section
   if (displayDirty) markDisplayDirty();
@@ -411,11 +412,28 @@ function searchSummary(s) {
   if (s.min_issues) parts.push(`≥${s.min_issues}`);
   if (s.cover_date_from || s.cover_date_to) parts.push(t("adv.coverShort", { from: s.cover_date_from || "…", to: s.cover_date_to || "…" }));
   if (s.jq) parts.push("jq");
+  if (isSequential(s)) {
+    const entries = Object.values((data.state.sequences || {})[s.id] || {});
+    parts.push(entries.length === 1 ? t("adv.seqShort", { n: entries[0].next_number, total: entries[0].total }) : t("adv.seqWord"));
+  }
   return parts.join(" · ");
 }
 
+function isSequential(s) {
+  return s.advanced && (s.source === "issues" ? s.volume_pick === "sequential" : s.issue_pick === "sequential");
+}
+
+// "Próximo: #N de M" for each series this search is going through.
+function sequenceInfo(id) {
+  const entries = Object.values((data.state.sequences || {})[id] || {});
+  if (!entries.length) return t("adv.seqNotStarted");
+  return entries
+    .map((e) => t("adv.seqNext", { n: e.next_number, total: e.total, label: e.label || "?" }))
+    .join(" · ");
+}
+
 function renderSearches(cfg) {
-  const key = lang + JSON.stringify(cfg.comics.searches);
+  const key = lang + JSON.stringify(cfg.comics.searches) + JSON.stringify(data.state.sequences || {});
   if (openSearchId || key === searchesKey) return;
   // Fill defaults (older or hand-edited configs may lack fields) and only mark
   // the list as rendered once it actually rendered.
@@ -523,6 +541,11 @@ function updatePanel(panel) {
   panel.querySelector(".volume-id-hint").textContent = t(issues ? "adv.volumeIdIssuesHint" : "adv.volumeIdHint");
   panel.querySelector(".volume-pick-label").textContent = t(issues ? "adv.issuesPick" : "adv.volumePick");
 
+  if (!issues && f("volume_pick").value === "sequential") f("volume_pick").value = "random";
+  const sequential = issues ? f("volume_pick").value === "sequential" : f("issue_pick").value === "sequential";
+  show(".seq-row", advanced && sequential);
+  panel.querySelector(".seq-info").textContent = sequenceInfo(panel.dataset.id);
+
   f("jq").disabled = !meta.jq_available;
   panel.querySelector(".jq-hint").textContent = t(meta.jq_available ? "adv.jqHint" : "adv.jqMissing", {
     kind: t(issues ? "adv.jqIssues" : "adv.jqVolumes"),
@@ -537,6 +560,7 @@ function openPanel(li, s) {
   }
   openSearchId = s.id;
   const panel = $("search-panel-tpl").content.firstElementChild.cloneNode(true);
+  panel.dataset.id = s.id;
   applyStaticI18n(panel);
   fillPanel(panel, { ...data.comics_meta.search_defaults, ...s });
   li.append(panel);
@@ -583,6 +607,11 @@ function openPanel(li, s) {
     msg.textContent = "";
     showProbe(panel.querySelector(".probe-out"), res);
     poll(); // refresh the API usage counter
+  });
+  act("reset-seq", async () => {
+    render(await api("POST", "/api/comics/sequence/reset", { id: s.id }));
+    updateOpenPanel();
+    msg.textContent = t("adv.seqResetDone");
   });
   act("clear-cache", async () => {
     await api("POST", "/api/comics/cache/clear", { search: readPanel(panel, s.id) });

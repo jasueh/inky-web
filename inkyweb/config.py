@@ -62,6 +62,7 @@ DEFAULT_STATE = {
     "last_detail": None,
     "last_error": None,
     "preview_rotated": False,
+    "sequences": {},  # sequential comic picking: {search id: {volume id | "issues": position}}
     "busy": False,
 }
 

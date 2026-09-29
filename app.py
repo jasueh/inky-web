@@ -188,6 +188,7 @@ def update_config():
         c = data["comics"]
         if "searches" in c:
             cfg["comics"]["searches"] = [comics.normalize_search(item) for item in c["searches"]]
+            comics.prune_sequences({x["id"] for x in cfg["comics"]["searches"]})
         if "rate_limit_per_hour" in c:
             cfg["comics"]["rate_limit_per_hour"] = int(clamp(c["rate_limit_per_hour"], 10, cvapi.OFFICIAL_LIMIT))
         if "random_volume" in c:
@@ -255,6 +256,14 @@ def probe_search():
     body = request.get_json(force=True) or {}
     s = comics.normalize_search(body.get("search") or {})
     return jsonify(comics.probe(config.load_config()["comics"], s, bool(body.get("dry_run"))))
+
+
+@app.post("/api/comics/sequence/reset")
+def reset_sequence():
+    """Start a search's sequential picking over from the first issue."""
+    body = request.get_json(force=True) or {}
+    comics.reset_sequence(str(body.get("id") or ""))
+    return status()
 
 
 @app.post("/api/comics/cache/clear")

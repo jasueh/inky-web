@@ -180,14 +180,20 @@
             <select name="volume_pick">
               <option value="random" data-i18n="adv.pickRandom"></option>
               <option value="first" data-i18n="adv.pickFirst"></option>
+              <option value="sequential" class="issues-only" data-i18n="adv.pickSequential"></option>
             </select>
           </label>
           <label class="row vol-only"><span data-i18n="adv.issuePick"></span>
             <select name="issue_pick">
               <option value="random_all" data-i18n="adv.issueRandomAll"></option>
               <option value="first100" data-i18n="adv.issueFirst100"></option>
+              <option value="sequential" data-i18n="adv.issueSequential"></option>
             </select>
           </label>
+          <div class="row seq-row">
+            <small class="seq-info"></small>
+            <button type="button" data-act="reset-seq" data-i18n="adv.seqReset"></button>
+          </div>
           <div class="row">
             <span data-i18n="adv.coverDates"></span>
             <input type="date" name="cover_date_from"> – <input type="date" name="cover_date_to">

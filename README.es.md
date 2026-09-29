@@ -32,7 +32,7 @@ No tiene autenticación: está pensada solo para usar en tu red local.
   - **Fuente:** `search` (búsqueda de texto por relevancia), `volumes` (filtro por nombre) o `issues` (números directamente, por ejemplo todas las portadas de un rango de fechas).
   - **Consulta a Comic Vine:** filtro y orden (solo sobre los campos que acepta la API) y páginas × resultados configurables.
   - **Filtros en la app:** editoriales, año de inicio de la serie, mínimo de números y palabras a excluir del título.
-  - **Elección:** serie fija por ID, rango de fecha de portada, y el número elegido entre **todos** los de la serie.
+  - **Elección:** serie fija por ID, rango de fecha de portada, y el número elegido al azar entre **todos** los de la serie, o **en orden** (#1 → último, y vuelve al #1; la posición sobrevive a los reinicios, con "Volver al #1" para reiniciar). En orden, los refrescos no hacen llamadas a la API mientras la lista de números esté en caché.
   - **Expresión jq opcional** sobre la lista de candidatos.
 - **Caché:** la lista de candidatos de cada búsqueda avanzada se guarda (24 h por defecto, en `data/cache/`). Cambiar los filtros de la app o jq no gasta llamadas a la API.
 - **Probar:** muestra los candidatos y el `curl` equivalente, y pide confirmación antes de gastar llamadas.
@@ -158,6 +158,7 @@ data/                   (no versionado) imágenes, miniaturas, config, estado, c
 | POST | `/api/presets` | Guardar / sobrescribir un perfil (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
 | DELETE | `/api/presets/<name>` | Borrar un perfil |
 | POST | `/api/comics/probe` | Probar una búsqueda avanzada (`{"search": {...}, "dry_run": true}` solo informa cuántas llamadas haría) |
+| POST | `/api/comics/sequence/reset` | Reiniciar desde el #1 la elección secuencial de una búsqueda (`{"id": ...}`) |
 | POST | `/api/comics/cache/clear` | Vaciar el caché de una búsqueda (`{"search": {...}}`) |
 
 Los errores de la API se devuelven como `{"error": {"code": ..., "params": {...}, "message": ...}}`. La web traduce `code` (ver `static/i18n.js`) y usa `message` (en inglés) como respaldo.

@@ -74,8 +74,8 @@ SEARCH_DEFAULTS = {
     "exclude_words": [],
     "cover_date_from": None,
     "cover_date_to": None,
-    "volume_pick": "random",  # random | first
-    "issue_pick": "random_all",  # random_all | first100
+    "volume_pick": "random",  # random | first | sequential (issues source only)
+    "issue_pick": "random_all",  # random_all | first100 | sequential
     "cache_hours": 24,
     "jq": "",  # optional jq expression applied to the candidate list
     "enabled": True,  # disabled searches keep their config but aren't used
@@ -150,8 +150,9 @@ def normalize_search(item):
     s["min_issues"] = _int_or_none(s["min_issues"], 1, 100000)
     for k in ("cover_date_from", "cover_date_to"):
         s[k] = s[k] if s[k] and _DATE.match(str(s[k])) else None
-    s["volume_pick"] = s["volume_pick"] if s["volume_pick"] in ("random", "first") else "random"
-    s["issue_pick"] = s["issue_pick"] if s["issue_pick"] in ("random_all", "first100") else "random_all"
+    picks = ("random", "first", "sequential") if s["source"] == "issues" else ("random", "first")
+    s["volume_pick"] = s["volume_pick"] if s["volume_pick"] in picks else "random"
+    s["issue_pick"] = s["issue_pick"] if s["issue_pick"] in ("random_all", "first100", "sequential") else "random_all"
     s["cache_hours"] = _int_or_none(s["cache_hours"], 1, 168) or 24
     s["jq"] = str(s["jq"] or "").strip()[:2000]
     if s["jq"] and JQ_FORBIDDEN.search(s["jq"]):
@@ -361,8 +362,98 @@ def _issue_count(api_key, volume, f, s, budget, use_volume_count):
     return total
 
 
+# ---------- sequential picking ----------
+
+MAX_ISSUE_PAGES = 20  # up to 2000 issues per volume
+
+
+def issue_sort_key(issue):
+    """Numeric order for issue numbers ("2" before "10", "1.5" between 1 and 2);
+    non-numeric ones go last, alphabetically. Comic Vine's own sort of
+    issue_number isn't relied on (it may be a text sort)."""
+    n = str(issue.get("issue_number") or "")
+    try:
+        return (0, float(n), n)
+    except ValueError:
+        return (1, 0.0, n)
+
+
+def volume_issues(api_key, volume, s, budget):
+    """All issues of a volume (within the cover date range), sorted by number.
+
+    Cached like the candidate lists, so while the cache lasts sequential
+    refreshes make no API calls (the list already has the cover URLs).
+    """
+    f = _issue_filter(volume["id"], s)
+    digest = hashlib.sha1(json.dumps({"issues_of": volume["id"], "filter": f}, sort_keys=True).encode()).hexdigest()[:16]
+    path = CACHE_DIR / f"issues-{digest}.json"
+    try:
+        cached = json.loads(path.read_text())
+        if time.time() - cached["fetched_at"] < s["cache_hours"] * 3600:
+            return cached["results"]
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        pass
+
+    results, seen = [], set()
+    for n in range(MAX_ISSUE_PAGES):
+        data = cvapi.request("issues", api_key, {"filter": f, "limit": 100, "offset": n * 100, "field_list": ISSUE_FIELDS}, budget)
+        page = data.get("results") or []
+        new = [i for i in page if i.get("id") not in seen]
+        seen.update(i.get("id") for i in new)
+        results.extend(new)
+        total = data.get("number_of_total_results") or 0
+        if len(page) < 100 or (n + 1) * 100 >= total or (n > 0 and not new):
+            break
+    results.sort(key=issue_sort_key)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"fetched_at": time.time(), "results": results}))
+    return results
+
+
+def next_in_sequence(search_id, key, items, label):
+    """Return the next item of a per-search, per-key sequence and advance it.
+
+    Positions live in state.json ("sequences": {search id: {key: {...}}}) so
+    they survive restarts; after the last item it wraps around to the first.
+    """
+    state = config.load_state()
+    sequences = state.get("sequences") or {}
+    entry = (sequences.get(search_id) or {}).get(key) or {}
+    idx = entry.get("next", 0) % len(items)
+    nxt = (idx + 1) % len(items)
+    sequences.setdefault(search_id, {})[key] = {
+        "next": nxt,
+        "total": len(items),
+        "shown": items[idx].get("issue_number"),
+        "next_number": items[nxt].get("issue_number"),
+        "label": label,
+    }
+    config.update_state(sequences=sequences)
+    return items[idx]
+
+
+def reset_sequence(search_id):
+    sequences = config.load_state().get("sequences") or {}
+    sequences.pop(search_id, None)
+    config.update_state(sequences=sequences)
+
+
+def prune_sequences(search_ids):
+    """Drop positions of searches that no longer exist."""
+    sequences = config.load_state().get("sequences") or {}
+    kept = {k: v for k, v in sequences.items() if k in search_ids}
+    if kept != sequences:
+        config.update_state(sequences=kept)
+
+
 def pick_issue(api_key, volume, s, budget):
     f = _issue_filter(volume["id"], s)
+    if s["issue_pick"] == "sequential":
+        items = volume_issues(api_key, volume, s, budget)
+        if not items:
+            raise UserError("no_issues", "No issues found for volume {volume}", volume=volume["id"])
+        return next_in_sequence(s["id"], str(volume["id"]), items, volume.get("name"))
+
     if s["issue_pick"] == "first100":
         data = cvapi.request("issues", api_key, {"filter": f, "limit": 100, "field_list": ISSUE_FIELDS}, budget)
         results = data.get("results") or []
@@ -407,6 +498,11 @@ def _advanced(api_key, s, budget):
     candidates = apply_filters(items, s)
     if not candidates:
         raise UserError("no_candidates", "No volumes left after the filters for '{query}'", query=_label(s))
+    if s["source"] == "issues" and s["volume_pick"] == "sequential":
+        # go through the issue candidates in order: by volume, then issue number
+        ordered = sorted(candidates, key=lambda i: ((i.get("volume") or {}).get("name") or "", issue_sort_key(i)))
+        chosen = next_in_sequence(s["id"], "issues", ordered, _label(s))
+        return chosen.get("volume") or {}, chosen
     chosen = candidates[0] if s["volume_pick"] == "first" else random.choice(candidates)
     if s["source"] == "issues":
         # the candidates already are issues; their volume only has id and name

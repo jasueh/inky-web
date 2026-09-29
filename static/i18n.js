@@ -198,6 +198,14 @@ const I18N = {
     "err.no_enabled_searches": "Todas las búsquedas están desactivadas; activá al menos una",
     "adv.name": "Nombre (opcional)",
     "adv.namePlaceholder": "Ej: One Piece #1 (Viz)",
+    "adv.issueSequential": "Secuencial: del #1 al último, en orden",
+    "adv.pickSequential": "Secuencial: en orden (serie y número)",
+    "adv.seqNext": "Próximo: #{n} de {total} ({label})",
+    "adv.seqNotStarted": "Todavía no arrancó: empieza por el #1",
+    "adv.seqReset": "Volver al #1",
+    "adv.seqResetDone": "Vuelve a empezar por el #1",
+    "adv.seqShort": "secuencial → #{n}/{total}",
+    "adv.seqWord": "secuencial",
   },
 
   en: {
@@ -395,6 +403,14 @@ const I18N = {
     "err.no_enabled_searches": "All searches are disabled; enable at least one",
     "adv.name": "Name (optional)",
     "adv.namePlaceholder": "e.g. One Piece #1 (Viz)",
+    "adv.issueSequential": "Sequential: from #1 to the last, in order",
+    "adv.pickSequential": "Sequential: in order (volume and number)",
+    "adv.seqNext": "Next: #{n} of {total} ({label})",
+    "adv.seqNotStarted": "Not started yet: begins with #1",
+    "adv.seqReset": "Back to #1",
+    "adv.seqResetDone": "Starts over from #1",
+    "adv.seqShort": "sequential → #{n}/{total}",
+    "adv.seqWord": "sequential",
   },
 };
 
