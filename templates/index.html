@@ -92,6 +92,13 @@
       <button type="button" id="gallery-all" data-i18n="images.all"></button>
       <button type="button" id="gallery-none" data-i18n="images.none"></button>
     </div>
+    <div class="row">
+      <button type="button" id="select-all" data-i18n="images.selectAll"></button>
+      <button type="button" id="select-none" data-i18n="images.selectNone" disabled></button>
+      <button type="button" id="delete-selected" class="danger" disabled></button>
+      <small data-i18n="images.selectHint"></small>
+      <small id="selection-msg" class="error"></small>
+    </div>
     <div id="images" class="grid"></div>
     <p id="images-empty" class="hint" data-i18n="images.empty" hidden></p>
   </section>

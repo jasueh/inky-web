@@ -73,7 +73,21 @@ def unique_name(filename):
 
 
 def valid_image_name(name):
-    return name == secure_filename(name) and (config.IMAGES_DIR / name).is_file()
+    return isinstance(name, str) and name == secure_filename(name) and (config.IMAGES_DIR / name).is_file()
+
+
+def remove_images(names):
+    """Delete image files and forget them in the gallery / single image."""
+    for name in names:
+        (config.IMAGES_DIR / name).unlink(missing_ok=True)
+        (config.THUMBS_DIR / thumb_name(name)).unlink(missing_ok=True)
+    gone = set(names)
+    cfg = config.load_config()
+    cfg["gallery"]["images"] = [n for n in cfg["gallery"]["images"] if n not in gone]
+    if cfg["single_image"] in gone:
+        cfg["single_image"] = None
+    config.save_config(cfg)
+    log.info("Deleted %s", sorted(gone))
 
 
 def public_config(cfg):
@@ -358,14 +372,17 @@ def upload():
 def delete_image(name):
     if not valid_image_name(name):
         raise UserError("unknown_image", "Unknown image", status=404)
-    (config.IMAGES_DIR / name).unlink()
-    (config.THUMBS_DIR / thumb_name(name)).unlink(missing_ok=True)
+    remove_images([name])
+    return status()
 
-    cfg = config.load_config()
-    cfg["gallery"]["images"] = [n for n in cfg["gallery"]["images"] if n != name]
-    if cfg["single_image"] == name:
-        cfg["single_image"] = None
-    config.save_config(cfg)
+
+@app.post("/api/images/delete")
+def delete_images():
+    """Delete several images at once. Names that no longer exist are skipped."""
+    names = (request.get_json(force=True) or {}).get("names")
+    if not isinstance(names, list):
+        raise UserError("invalid_names", "A list of image names is required")
+    remove_images([n for n in names if valid_image_name(n)])
     return status()
 
 

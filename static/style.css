@@ -102,8 +102,15 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .segmented input { display: none; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 12px; }
-.tile { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.tile { position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
 .tile.current { outline: 3px solid var(--accent); }
+.tile.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.tile.selected img { opacity: 0.75; }
+.tile .pick {
+  position: absolute; top: 6px; left: 6px; display: flex; padding: 5px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+}
+.tile .pick input { width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: var(--accent); }
 .tile img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--chip); display: block; }
 .tile .meta { padding: 8px; display: grid; gap: 6px; font-size: 0.85rem; }
 .tile .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }

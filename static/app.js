@@ -106,31 +106,12 @@ function render(next) {
 
   // images
   $("gallery-order").value = cfg.gallery.order;
-  const inGallery = new Set(cfg.gallery.images);
   $("images-empty").hidden = images.length > 0;
-  $("images").replaceChildren(
-    ...images.map((img) => {
-      const tile = document.createElement("div");
-      tile.className = "tile" + (cfg.single_image === img.name && cfg.mode === "single" ? " current" : "");
-      tile.innerHTML = `
-        <a href="/images/${encodeURIComponent(img.name)}" target="_blank"><img loading="lazy" src="${img.thumb}" alt=""></a>
-        <div class="meta">
-          <span class="name" title="${img.name}">${img.name}</span>
-          <label><input type="checkbox" ${inGallery.has(img.name) ? "checked" : ""}> ${esc(t("images.inGallery"))}</label>
-          <div class="actions">
-            <button type="button" data-act="show">${esc(t("images.show"))}</button>
-            <button type="button" data-act="delete" class="danger">${esc(t("images.delete"))}</button>
-          </div>
-        </div>`;
-      tile.querySelector("input").addEventListener("change", (e) => toggleGallery(img.name, e.target.checked));
-      tile.querySelector("[data-act=show]").addEventListener("click", async () =>
-        render(await api("POST", `/api/images/${encodeURIComponent(img.name)}/show`)));
-      tile.querySelector("[data-act=delete]").addEventListener("click", async () => {
-        if (confirm(t("images.confirmDelete", { name: img.name }))) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
-      });
-      return tile;
-    })
-  );
+  $("select-all").disabled = !images.length;
+  renderImages(cfg, images);
+  const names = new Set(images.map((i) => i.name));
+  for (const n of selected) if (!names.has(n)) selected.delete(n); // deleted elsewhere
+  updateSelection();
 
   // comics
   $("api-key").placeholder = cfg.comics.api_key_set ? t("comics.keySet", { hint: cfg.comics.api_key_hint }) : t("comics.keyUnset");
@@ -152,6 +133,70 @@ function render(next) {
   for (const key of SLIDERS) $(key).nextElementSibling.textContent = Number($(key).value).toFixed(2);
   setDisplayButtons();
   renderPresets(cfg.display_presets);
+}
+
+// ---------- images ----------
+// The grid is only rebuilt when something it shows changed, so polling doesn't
+// steal the focus or reload thumbnails. The selection lives outside the DOM
+// and is painted onto the tiles by updateSelection().
+
+const selected = new Set();
+let lastPicked = null; // anchor for shift+click ranges
+let imagesKey = "";
+
+function renderImages(cfg, images) {
+  const key = lang + JSON.stringify([images, cfg.gallery.images, cfg.mode, cfg.single_image]);
+  if (key === imagesKey) return;
+  imagesKey = key;
+  const inGallery = new Set(cfg.gallery.images);
+  $("images").replaceChildren(
+    ...images.map((img) => {
+      const tile = document.createElement("div");
+      tile.className = "tile" + (cfg.single_image === img.name && cfg.mode === "single" ? " current" : "");
+      tile.dataset.name = img.name;
+      tile.innerHTML = `
+        <label class="pick" title="${esc(t("images.select"))}"><input type="checkbox" data-act="select"></label>
+        <a href="/images/${encodeURIComponent(img.name)}" target="_blank"><img loading="lazy" src="${img.thumb}" alt=""></a>
+        <div class="meta">
+          <span class="name" title="${img.name}">${img.name}</span>
+          <label><input type="checkbox" data-act="gallery" ${inGallery.has(img.name) ? "checked" : ""}> ${esc(t("images.inGallery"))}</label>
+          <div class="actions">
+            <button type="button" data-act="show">${esc(t("images.show"))}</button>
+            <button type="button" data-act="delete" class="danger">${esc(t("images.delete"))}</button>
+          </div>
+        </div>`;
+      tile.querySelector("[data-act=select]").addEventListener("click", (e) => pick(img.name, e.target.checked, e.shiftKey));
+      tile.querySelector("[data-act=gallery]").addEventListener("change", (e) => toggleGallery(img.name, e.target.checked));
+      tile.querySelector("[data-act=show]").addEventListener("click", async () =>
+        render(await api("POST", `/api/images/${encodeURIComponent(img.name)}/show`)));
+      tile.querySelector("[data-act=delete]").addEventListener("click", async () => {
+        if (confirm(t("images.confirmDelete", { name: img.name }))) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
+      });
+      return tile;
+    })
+  );
+}
+
+// With shift, everything between the last picked tile and this one follows it.
+function pick(name, on, range) {
+  const names = data.images.map((i) => i.name);
+  const from = range ? names.indexOf(lastPicked) : -1;
+  const to = names.indexOf(name);
+  const span = from < 0 ? [name] : names.slice(Math.min(from, to), Math.max(from, to) + 1);
+  for (const n of span) on ? selected.add(n) : selected.delete(n);
+  lastPicked = name;
+  updateSelection();
+}
+
+function updateSelection() {
+  for (const tile of $("images").children) {
+    const on = selected.has(tile.dataset.name);
+    tile.classList.toggle("selected", on);
+    tile.querySelector("[data-act=select]").checked = on;
+  }
+  $("select-none").disabled = !selected.size;
+  $("delete-selected").disabled = !selected.size;
+  $("delete-selected").textContent = t("images.deleteSelected", { n: selected.size });
 }
 
 function renderPresets(presets) {
@@ -310,6 +355,24 @@ $("gallery-order").addEventListener("change", () => saveConfig({ gallery: { orde
 $("gallery-all").addEventListener("click", () => saveConfig({ gallery: { images: data.images.map((i) => i.name) } }));
 $("gallery-none").addEventListener("click", () => saveConfig({ gallery: { images: [] } }));
 
+$("select-all").addEventListener("click", () => {
+  for (const img of data.images) selected.add(img.name);
+  updateSelection();
+});
+$("select-none").addEventListener("click", () => {
+  selected.clear();
+  updateSelection();
+});
+$("delete-selected").addEventListener("click", async () => {
+  if (!confirm(t("images.confirmDeleteMany", { n: selected.size }))) return;
+  $("selection-msg").textContent = "";
+  try {
+    render(await api("POST", "/api/images/delete", { names: [...selected] }));
+  } catch (err) {
+    $("selection-msg").textContent = errText(err);
+  }
+});
+
 $("save-key").addEventListener("click", async () => {
   const key = $("api-key").value.trim();
   if (!key) return;
@@ -373,7 +436,7 @@ for (const b of document.querySelectorAll("[data-lang]")) {
   b.addEventListener("click", () => {
     setLang(b.dataset.lang);
     // messages from earlier actions were written in the old language
-    for (const id of ["current-msg", "upload-msg", "preset-msg"]) $(id).textContent = "";
+    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg"]) $(id).textContent = "";
     updateChosen();
     if (updateOpenPanel) updateOpenPanel();
     if (data) render(data);

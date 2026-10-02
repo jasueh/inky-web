@@ -57,6 +57,12 @@ const I18N = {
     "images.show": "Mostrar",
     "images.delete": "Borrar",
     "images.confirmDelete": "¿Borrar {name}?",
+    "images.select": "Seleccionar",
+    "images.selectAll": "Seleccionar todas",
+    "images.selectNone": "Deseleccionar",
+    "images.selectHint": "Shift+clic selecciona un rango.",
+    "images.deleteSelected": "Borrar seleccionadas ({n})",
+    "images.confirmDeleteMany": "¿Borrar {n} imagen(es)? No se puede deshacer.",
 
     "comics.title": "Cómics (Comic Vine)",
     "comics.apiKey": "API key",
@@ -100,6 +106,7 @@ const I18N = {
 
     "err.invalid_mode": "Modo inválido",
     "err.unknown_image": "Imagen inexistente",
+    "err.invalid_names": "Falta la lista de imágenes",
     "err.preset_name": "El nombre debe tener entre 1 y {max} caracteres",
     "err.preset_values": "Faltan valores o no son números",
     "err.preset_not_found": "Perfil inexistente",
@@ -262,6 +269,12 @@ const I18N = {
     "images.show": "Show",
     "images.delete": "Delete",
     "images.confirmDelete": "Delete {name}?",
+    "images.select": "Select",
+    "images.selectAll": "Select all",
+    "images.selectNone": "Deselect",
+    "images.selectHint": "Shift+click selects a range.",
+    "images.deleteSelected": "Delete selected ({n})",
+    "images.confirmDeleteMany": "Delete {n} image(s)? This can't be undone.",
 
     "comics.title": "Comics (Comic Vine)",
     "comics.apiKey": "API key",
@@ -305,6 +318,7 @@ const I18N = {
 
     "err.invalid_mode": "Invalid mode",
     "err.unknown_image": "Unknown image",
+    "err.invalid_names": "A list of image names is required",
     "err.preset_name": "The name must be 1 to {max} characters long",
     "err.preset_values": "Missing or non-numeric values",
     "err.preset_not_found": "Preset not found",
