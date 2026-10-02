@@ -24,6 +24,9 @@ DEFAULT_CONFIG = {
     "mode": "single",
     "interval_minutes": 60,
     "refresh_on_start": False,  # e-ink keeps its image; don't redraw on app start
+    "paused": False,  # keep the current image: gallery / comics don't rotate
+    # Action of each Inky Impression button; see buttons.ACTIONS
+    "buttons": {"A": "refresh", "B": "gallery", "C": "comics", "D": "pause"},
     "single_image": None,
     "gallery": {
         "order": "random",  # random | sequential (collection by collection)

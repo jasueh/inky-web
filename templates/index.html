@@ -40,6 +40,7 @@
     <p id="st-error" class="error" hidden></p>
     <div class="row">
       <button id="btn-refresh" class="primary" data-i18n="status.refresh"></button>
+      <button type="button" id="btn-pause"></button>
       <button type="button" id="btn-save-current" hidden></button>
       <a id="btn-download" class="button" data-i18n="status.download" hidden download></a>
       <small id="current-msg"></small>
@@ -240,6 +241,14 @@
       <div class="probe-out" hidden></div>
     </div>
   </template>
+
+  <section class="card">
+    <h2 data-i18n="buttons.title"></h2>
+    <p class="hint" data-i18n="buttons.hint"></p>
+    <div id="buttons" class="buttons"></div>
+    <p id="buttons-unavailable" class="hint" data-i18n="buttons.unavailable" hidden></p>
+    <small id="buttons-msg"></small>
+  </section>
 
   <section class="card">
     <h2 data-i18n="display.title"></h2>

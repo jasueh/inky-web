@@ -68,7 +68,10 @@ function render(next) {
   // status
   $("busy").hidden = !state.busy;
   $("btn-refresh").disabled = state.busy;
-  $("st-mode").textContent = t(`mode.${cfg.mode}`);
+  const rotates = cfg.mode !== "single";
+  $("st-mode").textContent = t(`mode.${cfg.mode}`) + (cfg.paused && rotates ? ` · ${t("status.paused")}` : "");
+  $("btn-pause").hidden = !rotates;
+  $("btn-pause").textContent = t(cfg.paused ? "status.resume" : "status.pause");
   $("st-detail").innerHTML = describe(state);
   $("st-last").textContent = fmtTime(state.last_refresh);
   $("st-next").textContent = state.next_refresh ? fmtTime(state.next_refresh) : "—";
@@ -118,6 +121,8 @@ function render(next) {
   $("api-usage").textContent = t("comics.usage", { ...u, limit: cfg.comics.rate_limit_per_hour });
   renderSearches(cfg);
   if (updateOpenPanel) updateOpenPanel();
+
+  renderButtons(cfg);
 
   // display: staged until "Aplicar", like the mode section
   if (displayDirty) markDisplayDirty();
@@ -341,6 +346,37 @@ async function bulk(call, doneKey, name) {
   }
 }
 
+// ---------- display buttons ----------
+
+let buttonsKey = "";
+
+function renderButtons(cfg) {
+  $("buttons-unavailable").hidden = data.buttons.available;
+  const key = lang + JSON.stringify(cfg.buttons);
+  if (key === buttonsKey) return;
+  buttonsKey = key;
+  $("buttons").replaceChildren(
+    ...Object.keys(cfg.buttons).map((label) => {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<strong>${esc(label)}</strong> <select></select> <button type="button">${esc(t("buttons.try"))}</button>`;
+      const select = row.querySelector("select");
+      setOptions(select, data.buttons.actions.map((a) => [a, t(`buttons.action.${a}`)]), cfg.buttons[label]);
+      select.addEventListener("change", () => saveConfig({ buttons: { [label]: select.value } }));
+      row.querySelector("button").addEventListener("click", async () => {
+        $("buttons-msg").textContent = "";
+        try {
+          render(await api("POST", `/api/buttons/${label}/press`));
+          $("buttons-msg").textContent = t("buttons.pressed", { label, action: t(`buttons.action.${data.config.buttons[label]}`) });
+        } catch (err) {
+          $("buttons-msg").textContent = errText(err);
+        }
+      });
+      return row;
+    })
+  );
+}
+
 function renderPresets(presets) {
   const names = Object.keys(presets);
   $("presets-empty").hidden = names.length > 0;
@@ -439,6 +475,8 @@ function applyPreviewRotation() {
 // ---------- events ----------
 
 $("btn-refresh").addEventListener("click", async () => render(await api("POST", "/api/refresh")));
+$("btn-pause").addEventListener("click", async () =>
+  render(await api("POST", "/api/pause", { paused: !data.config.paused })));
 $("btn-save-current").addEventListener("click", async () => {
   $("current-msg").textContent = "";
   try {
@@ -588,7 +626,7 @@ for (const b of document.querySelectorAll("[data-lang]")) {
   b.addEventListener("click", () => {
     setLang(b.dataset.lang);
     // messages from earlier actions were written in the old language
-    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg", "collection-msg"]) $(id).textContent = "";
+    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg", "collection-msg", "buttons-msg"]) $(id).textContent = "";
     updateChosen();
     if (updateOpenPanel) updateOpenPanel();
     if (data) render(data);

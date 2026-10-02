@@ -14,6 +14,8 @@ No tiene autenticación: está pensada solo para usar en tu red local.
 - **Cómics random:** portadas al azar desde Comic Vine (basado en el ejemplo `examples/spectra6/comics` de [`pimoroni/inky`](https://github.com/pimoroni/inky)).
 - **Frecuencia configurable** (mínimo 2 minutos; un refresco completo del panel tarda unos 30–40 s). Los cambios de modo y frecuencia pasan por **Aplicar / Descartar**, así un clic accidental no refresca el panel.
 - **No redibuja al arrancar:** la tinta e-ink conserva la imagen sin corriente, así que la app retoma la rotación desde el último refresco. Se puede activar "Refrescar al iniciar la app".
+- **Pausa:** deja la imagen actual en pantalla hasta que reanudes la rotación.
+- **Botones de la pantalla:** los cuatro botones de la Inky Impression (A–D) ejecutan cada uno una acción configurable: refrescar ahora, pasar a Galería o a Cómics, pausar/reanudar, o nada. Las pulsaciones mientras el panel se actualiza se ignoran, nunca se acumulan. Cada uno se puede probar desde la web.
 
 **Imágenes**
 - Subir varias a la vez (opcionalmente directo a una colección), mostrarlas y borrarlas.
@@ -128,6 +130,7 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (se ve co
 | `INKY_WEB_HOST` | `0.0.0.0` | Interfaz de escucha |
 | `INKY_WEB_DATA` | `./data` | Carpeta de imágenes, config, estado y caché |
 | `INKY_MOCK` | — | `1` para correr sin pantalla |
+| `INKY_WEB_BUTTON_PINS` | `5,6,16,24` (`5,6,25,24` en la 13.3") | Números GPIO (BCM) de los botones A–D |
 
 ## Estructura del proyecto
 
@@ -137,6 +140,7 @@ inkyweb/config.py       config.json / state.json persistentes (en data/), migrac
 inkyweb/display.py      preparación de imagen + driver Inky (o mock)
 inkyweb/library.py      archivos de imagen y las colecciones que los agrupan
 inkyweb/scheduler.py    thread en segundo plano: refresca / redibuja según el modo
+inkyweb/buttons.py      botones A–D de la pantalla (GPIO) y sus acciones
 inkyweb/comics.py       búsquedas simples y avanzadas de cómics, caché, jq, "Probar"
 inkyweb/cvapi.py        cliente de Comic Vine: espaciado de llamadas, tope por endpoint, curl
 inkyweb/errors.py       errores con código que traduce la web
@@ -153,6 +157,8 @@ data/                   (no versionado) imágenes, miniaturas, config, estado, c
 | POST | `/api/config` | Actualización parcial de la config (JSON) |
 | POST | `/api/refresh` | Refrescar ahora (siguiente imagen según el modo) |
 | POST | `/api/redraw` | Redibujar la imagen actual con los ajustes de pantalla vigentes |
+| POST | `/api/pause` | Pausar o reanudar la rotación (`{"paused": true}`) |
+| POST | `/api/buttons/<A-D>/press` | Hacer lo mismo que al apretar ese botón de la pantalla |
 | POST | `/api/images` | Subir imágenes (`multipart`, campo `files`; `collection` opcional con el id) |
 | DELETE | `/api/images/<name>` | Borrar una imagen |
 | POST | `/api/images/delete` | Borrar varias imágenes (`{"names": [...]}`) |

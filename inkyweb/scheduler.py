@@ -50,6 +50,11 @@ class Scheduler:
         """Recompute the next refresh time without refreshing now."""
         self._wake.set()
 
+    def restart_interval(self):
+        """Count the rotation interval from now (e.g. when resuming from pause)."""
+        self._base = time.time()
+        self._wake.set()
+
     @property
     def busy(self):
         return self._refresh_lock.locked()
@@ -99,7 +104,7 @@ class Scheduler:
         interval change or a redraw doesn't move or re-trigger the rotation."""
         if from_now or self._base is None:
             self._base = time.time()
-        rotating = cfg["mode"] in ("gallery", "comics")
+        rotating = cfg["mode"] in ("gallery", "comics") and not cfg["paused"]
         self._next_at = self._base + self._interval(cfg) if rotating else None
         config.update_state(next_refresh=_iso(self._next_at) if self._next_at else None)
 

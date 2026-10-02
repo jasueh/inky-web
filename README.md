@@ -14,6 +14,8 @@ There is no authentication: it is meant for use on your LAN only.
 - **Random comics:** random covers from Comic Vine (based on the `examples/spectra6/comics` example in [`pimoroni/inky`](https://github.com/pimoroni/inky)).
 - **Configurable interval** (minimum 2 minutes; a full panel refresh takes about 30–40 s). Mode and interval changes are staged behind **Apply / Discard**, so a stray click doesn't refresh the panel.
 - **No redraw on startup:** e-ink keeps its image without power, so the app resumes the rotation from the last refresh. You can turn on "Refresh when the app starts" instead.
+- **Pause:** keep the current image on screen until you resume the rotation.
+- **Display buttons:** the four buttons of the Inky Impression (A–D) each run a configurable action: refresh now, switch to Gallery or Comics, pause/resume, or nothing. Presses while the panel is updating are ignored, never queued. Each one can be tried from the web UI.
 
 **Images**
 - Upload several at once (optionally straight into a collection), show and delete.
@@ -128,6 +130,7 @@ In mock mode the processed image is only written to `data/current.png` (shown as
 | `INKY_WEB_HOST` | `0.0.0.0` | Listen address |
 | `INKY_WEB_DATA` | `./data` | Folder for images, config, state and cache |
 | `INKY_MOCK` | — | `1` to run without a display |
+| `INKY_WEB_BUTTON_PINS` | `5,6,16,24` (`5,6,25,24` on the 13.3") | BCM GPIO numbers of buttons A–D |
 
 ## Project structure
 
@@ -137,6 +140,7 @@ inkyweb/config.py       persistent config.json / state.json (in data/), migratio
 inkyweb/display.py      image preparation + Inky driver (or mock)
 inkyweb/library.py      image files and the collections that group them
 inkyweb/scheduler.py    background thread: refresh / redraw according to the mode
+inkyweb/buttons.py      the display's A–D buttons (GPIO) and their actions
 inkyweb/comics.py       simple and advanced comic searches, cache, jq, probing
 inkyweb/cvapi.py        Comic Vine client: call spacing, per-resource budget, curl
 inkyweb/errors.py       coded errors that the UI translates
@@ -153,6 +157,8 @@ data/                   (not versioned) images, thumbnails, config, state, cache
 | POST | `/api/config` | Partial config update (JSON) |
 | POST | `/api/refresh` | Refresh now (next image for the current mode) |
 | POST | `/api/redraw` | Redraw the current image with the current display settings |
+| POST | `/api/pause` | Pause or resume the rotation (`{"paused": true}`) |
+| POST | `/api/buttons/<A-D>/press` | Do what pressing that display button does |
 | POST | `/api/images` | Upload images (`multipart`, field `files`; optional `collection` id) |
 | DELETE | `/api/images/<name>` | Delete an image |
 | POST | `/api/images/delete` | Delete several images (`{"names": [...]}`) |

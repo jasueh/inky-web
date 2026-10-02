@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from inkyweb import comics, config, cvapi, display, library
+from inkyweb import buttons, comics, config, cvapi, display, library
 from inkyweb.errors import UserError
 from inkyweb.scheduler import Scheduler
 
@@ -159,6 +159,7 @@ def status():
             "api_usage": cvapi.usage(),
             "official_limit": cvapi.OFFICIAL_LIMIT,
         },
+        buttons={"actions": buttons.ACTIONS, "available": buttons.available},
         resolution=display.resolution(),
         min_interval=config.MIN_INTERVAL_MINUTES,
     )
@@ -173,6 +174,8 @@ def update_config():
     if "mode" in data:
         if data["mode"] not in config.MODES:
             raise UserError("invalid_mode", "Invalid mode")
+        if cfg["mode"] != data["mode"]:
+            cfg["paused"] = False  # picking a mode means wanting to see it
         cfg["mode"] = data["mode"]
 
     if "interval_minutes" in data:
@@ -186,6 +189,12 @@ def update_config():
         if name is not None and not valid_image_name(name):
             raise UserError("unknown_image", "Unknown image")
         cfg["single_image"] = name
+
+    if "buttons" in data:
+        for label, action in data["buttons"].items():
+            if label not in buttons.LABELS or action not in buttons.ACTIONS:
+                raise UserError("invalid_button", "Invalid button or action")
+            cfg["buttons"][label] = action
 
     if "gallery" in data:
         g = data["gallery"]
@@ -284,6 +293,24 @@ def clear_search_cache():
 @app.post("/api/refresh")
 def refresh_now():
     scheduler.trigger()
+    return status()
+
+
+@app.post("/api/pause")
+def pause():
+    """Pause or resume the rotation: {"paused": true|false}."""
+    body = request.get_json(force=True) or {}
+    buttons.set_paused(bool(body.get("paused")), scheduler)
+    return status()
+
+
+@app.post("/api/buttons/<label>/press")
+def press_button(label):
+    """Do what pressing that button on the display does (to try it from the UI)."""
+    if label not in buttons.LABELS:
+        raise UserError("invalid_button", "Invalid button or action", status=404)
+    if buttons.press(label, scheduler) == "busy":
+        raise UserError("panel_busy", "The display is updating; wait for it to finish", status=409)
     return status()
 
 
@@ -463,6 +490,7 @@ def show_image(name):
 
 
 scheduler.start()
+buttons.start(scheduler)
 
 if __name__ == "__main__":
     app.run(host=os.environ.get("INKY_WEB_HOST", "0.0.0.0"), port=int(os.environ.get("INKY_WEB_PORT", 8080)))
