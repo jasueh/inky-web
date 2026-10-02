@@ -346,6 +346,10 @@ def save_current():
 
 @app.post("/api/images")
 def upload():
+    """Store the uploaded files, optionally straight into a collection."""
+    cid = request.form.get("collection")
+    if cid:
+        library.find(config.load_config(), cid)  # fail before storing anything
     saved, errors = [], []
     for f in request.files.getlist("files"):
         if not f.filename:
@@ -362,6 +366,10 @@ def upload():
         except (UnidentifiedImageError, OSError) as e:
             path.unlink(missing_ok=True)
             errors.append(UserError("invalid_image", "{file}: not a valid image ({detail})", file=f.filename, detail=str(e)).to_dict())
+    if cid and saved:
+        cfg = config.load_config()
+        library.add(library.find(cfg, cid), saved)
+        config.save_config(cfg)
     log.info("Uploaded %s", saved)
     return jsonify(saved=saved, errors=errors)
 

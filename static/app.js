@@ -193,6 +193,7 @@ function renderCollections(cfg, images) {
     viewFilter
   );
   setOptions($("bulk-target"), [...named, ["", t("images.newCollection")]]);
+  setOptions($("upload-target"), [["", t("col.unsorted")], ...named]);
 }
 
 async function collectionCall(method, url, body) {
@@ -473,6 +474,7 @@ $("upload-form").addEventListener("submit", async (e) => {
   if (!files.length) return;
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
+  fd.append("collection", $("upload-target").value);
   $("upload-msg").textContent = t("images.uploading");
   try {
     const res = await api("POST", "/api/images", fd);
