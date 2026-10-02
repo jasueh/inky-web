@@ -114,6 +114,8 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .tile img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--chip); display: block; }
 .tile .meta { padding: 8px; display: grid; gap: 6px; font-size: 0.85rem; }
 .tile .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.tile .groups { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .groups.none { color: var(--muted); font-style: italic; }
 .tile .actions { display: flex; gap: 6px; }
 .tile .actions button { flex: 1; padding: 4px 6px; font-size: 0.85rem; }
 

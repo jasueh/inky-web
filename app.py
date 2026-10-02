@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from inkyweb import comics, config, cvapi, display
+from inkyweb import comics, config, cvapi, display, library
 from inkyweb.errors import UserError
 from inkyweb.scheduler import Scheduler
 
@@ -20,7 +20,6 @@ log = logging.getLogger("inky-web")
 # The UI polls /api/status every few seconds; keep request lines out of the journal.
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 THUMB_SIZE = (400, 300)
 
 app = Flask(__name__)
@@ -43,15 +42,6 @@ def api_error(e):
 
 
 # ---------- helpers ----------
-
-def list_images():
-    files = sorted(
-        (p for p in config.IMAGES_DIR.iterdir() if p.suffix.lower() in ALLOWED_EXT),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    return [p.name for p in files]
-
 
 def thumb_name(name):
     return Path(name).stem + ".jpg"
@@ -76,14 +66,20 @@ def valid_image_name(name):
     return isinstance(name, str) and name == secure_filename(name) and (config.IMAGES_DIR / name).is_file()
 
 
+def valid_names(names):
+    if not isinstance(names, list):
+        raise UserError("invalid_names", "A list of image names is required")
+    return [n for n in names if valid_image_name(n)]
+
+
 def remove_images(names):
-    """Delete image files and forget them in the gallery / single image."""
+    """Delete image files and forget them in the collections / single image."""
     for name in names:
         (config.IMAGES_DIR / name).unlink(missing_ok=True)
         (config.THUMBS_DIR / thumb_name(name)).unlink(missing_ok=True)
     gone = set(names)
     cfg = config.load_config()
-    cfg["gallery"]["images"] = [n for n in cfg["gallery"]["images"] if n not in gone]
+    library.forget(cfg, gone)
     if cfg["single_image"] in gone:
         cfg["single_image"] = None
     config.save_config(cfg)
@@ -140,7 +136,7 @@ def preview():
 
 @app.get("/api/status")
 def status():
-    images = list_images()
+    images = library.list_images()
     state = config.load_state()
     saved_as = (state.get("last_detail") or {}).get("saved_as")
     return jsonify(
@@ -193,8 +189,6 @@ def update_config():
 
     if "gallery" in data:
         g = data["gallery"]
-        if "images" in g:
-            cfg["gallery"]["images"] = [n for n in g["images"] if valid_image_name(n)]
         if g.get("order") in ("random", "sequential"):
             cfg["gallery"]["order"] = g["order"]
 
@@ -315,7 +309,7 @@ def download_current():
 
 @app.post("/api/current/save")
 def save_current():
-    """Save the comic cover on screen into the image library and gallery."""
+    """Save the comic cover on screen into the library, in its own collection."""
     body = request.get_json(silent=True) or {}
     if scheduler.busy:  # current_source.png may already hold the next image
         raise UserError("panel_busy", "The display is updating; wait for it to finish", status=409)
@@ -338,9 +332,13 @@ def save_current():
     make_thumb(name)
 
     cfg = config.load_config()
-    if name not in cfg["gallery"]["images"]:
-        cfg["gallery"]["images"].append(name)
-        config.save_config(cfg)
+    saved = next((c for c in cfg["collections"] if c["id"] == library.SAVED_COMICS), None)
+    if saved is None:
+        names = {c["name"].lower() for c in cfg["collections"]}
+        title = next(t for t in ("Comics guardados", f"Comics guardados {uuid.uuid4().hex[:4]}") if t.lower() not in names)
+        saved = library.create(cfg, title, library.SAVED_COMICS)
+    library.add(saved, [name])
+    config.save_config(cfg)
     config.update_state(last_detail={**detail, "saved_as": name})
     log.info("Saved comic cover as %s", name)
     return status()
@@ -352,7 +350,7 @@ def upload():
     for f in request.files.getlist("files"):
         if not f.filename:
             continue
-        if Path(f.filename).suffix.lower() not in ALLOWED_EXT:
+        if Path(f.filename).suffix.lower() not in library.ALLOWED_EXT:
             errors.append(UserError("unsupported_type", "{file}: unsupported type", file=f.filename).to_dict())
             continue
         name = unique_name(f.filename)
@@ -379,10 +377,68 @@ def delete_image(name):
 @app.post("/api/images/delete")
 def delete_images():
     """Delete several images at once. Names that no longer exist are skipped."""
-    names = (request.get_json(force=True) or {}).get("names")
-    if not isinstance(names, list):
-        raise UserError("invalid_names", "A list of image names is required")
-    remove_images([n for n in names if valid_image_name(n)])
+    remove_images(valid_names((request.get_json(force=True) or {}).get("names")))
+    return status()
+
+
+# ---------- collections ----------
+
+@app.post("/api/collections")
+def create_collection():
+    """Create a collection, optionally with some images already in it."""
+    body = request.get_json(force=True) or {}
+    cfg = config.load_config()
+    col = library.create(cfg, body.get("name"))
+    library.add(col, valid_names(body.get("images") or []))
+    config.save_config(cfg)
+    return status()
+
+
+@app.post("/api/collections/<cid>")
+def update_collection(cid):
+    """Rename, enable/disable or move a collection. The built-in "unsorted"
+    group only takes "enabled"."""
+    body = request.get_json(force=True) or {}
+    cfg = config.load_config()
+    if cid == library.UNSORTED:
+        if "enabled" in body:
+            cfg["unsorted_enabled"] = bool(body["enabled"])
+    else:
+        col = library.find(cfg, cid)
+        if "name" in body:
+            col["name"] = library.clean_name(cfg, body["name"], skip_id=cid)
+        if "enabled" in body:
+            col["enabled"] = bool(body["enabled"])
+        if body.get("move") in ("up", "down"):  # the list order is the sequential order
+            cols = cfg["collections"]
+            i = cols.index(col)
+            j = i + (-1 if body["move"] == "up" else 1)
+            if 0 <= j < len(cols):
+                cols[i], cols[j] = cols[j], cols[i]
+    config.save_config(cfg)
+    scheduler.reschedule()
+    return status()
+
+
+@app.delete("/api/collections/<cid>")
+def delete_collection(cid):
+    """Remove the grouping only; its images stay in the library."""
+    cfg = config.load_config()
+    cfg["collections"].remove(library.find(cfg, cid))
+    config.save_config(cfg)
+    return status()
+
+
+@app.post("/api/collections/<cid>/images")
+def collection_images(cid):
+    """Add and/or remove images: {"add": [...], "remove": [...]}."""
+    body = request.get_json(force=True) or {}
+    cfg = config.load_config()
+    col = library.find(cfg, cid)
+    library.add(col, valid_names(body.get("add") or []))
+    drop = set(valid_names(body.get("remove") or []))
+    col["images"] = [n for n in col["images"] if n not in drop]
+    config.save_config(cfg)
     return status()
 
 

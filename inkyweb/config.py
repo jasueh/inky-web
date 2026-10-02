@@ -26,9 +26,11 @@ DEFAULT_CONFIG = {
     "refresh_on_start": False,  # e-ink keeps its image; don't redraw on app start
     "single_image": None,
     "gallery": {
-        "images": [],
-        "order": "random",  # random | sequential
+        "order": "random",  # random | sequential (collection by collection)
     },
+    # The gallery rotates the enabled ones: [{"id", "name", "enabled", "images"}]
+    "collections": [],
+    "unsorted_enabled": True,  # also rotate the images that are in no collection
     "comics": {
         "api_key": "",
         # Each search: {"id", "term", "advanced", ...}; see comics.SEARCH_DEFAULTS
@@ -100,11 +102,23 @@ def ensure_dirs():
 
 def _migrate(raw):
     """Upgrade configs saved by older versions. Returns True if changed."""
+    changed = False
     comics = raw.get("comics")
     if isinstance(comics, dict) and "searches" not in comics and "queries" in comics:
         comics["searches"] = [{"id": uuid.uuid4().hex[:8], "term": q.strip()} for q in comics.pop("queries") if q.strip()]
-        return True
-    return False
+        changed = True
+    gallery = raw.get("gallery")
+    if isinstance(gallery, dict) and "images" in gallery:
+        # The single gallery list becomes a collection. Images outside it
+        # didn't rotate before, so keep the unsorted group off.
+        images = gallery.pop("images")
+        if images:
+            raw.setdefault("collections", []).append(
+                {"id": uuid.uuid4().hex[:8], "name": "Galería", "enabled": True, "images": images}
+            )
+            raw["unsorted_enabled"] = False
+        changed = True
+    return changed
 
 
 def load_config():
@@ -115,7 +129,7 @@ def load_config():
             raw = {}
         migrated = _migrate(raw)
         cfg = _merge(DEFAULT_CONFIG, raw)
-        if migrated:  # persist so migrated searches keep stable ids
+        if migrated:  # persist so migrated searches and collections keep stable ids
             _write(CONFIG_FILE, cfg)
         return cfg
 

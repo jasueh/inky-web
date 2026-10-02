@@ -81,26 +81,45 @@
       <button type="submit" data-i18n="images.upload"></button>
       <span id="upload-msg" class="hint"></span>
     </form>
+
+    <h3 data-i18n="col.title"></h3>
+    <p class="hint" data-i18n="col.hint"></p>
+    <ul id="collections" class="searches"></ul>
+    <form id="collection-form" class="row">
+      <input type="text" id="collection-name" maxlength="40" data-i18n-placeholder="col.namePlaceholder">
+      <button type="submit" data-i18n="col.create"></button>
+      <small id="collection-msg" class="error"></small>
+    </form>
     <label class="row">
       <span data-i18n="images.order"></span>
       <select id="gallery-order">
         <option value="random" data-i18n="images.random"></option>
         <option value="sequential" data-i18n="images.sequential"></option>
       </select>
+      <small data-i18n="images.orderHint"></small>
     </label>
+
+    <h3 data-i18n="images.library"></h3>
     <div class="row">
-      <button type="button" id="gallery-all" data-i18n="images.all"></button>
-      <button type="button" id="gallery-none" data-i18n="images.none"></button>
+      <span data-i18n="images.view"></span>
+      <select id="view-filter"></select>
+      <input type="text" id="name-filter" data-i18n-placeholder="images.namePlaceholder">
+      <small id="view-count"></small>
     </div>
     <div class="row">
       <button type="button" id="select-all" data-i18n="images.selectAll"></button>
       <button type="button" id="select-none" data-i18n="images.selectNone" disabled></button>
-      <button type="button" id="delete-selected" class="danger" disabled></button>
       <small data-i18n="images.selectHint"></small>
-      <small id="selection-msg" class="error"></small>
+    </div>
+    <div class="row">
+      <select id="bulk-target"></select>
+      <button type="button" id="bulk-add" data-i18n="images.addTo" disabled></button>
+      <button type="button" id="bulk-remove" hidden disabled></button>
+      <button type="button" id="delete-selected" class="danger" disabled></button>
+      <small id="selection-msg"></small>
     </div>
     <div id="images" class="grid"></div>
-    <p id="images-empty" class="hint" data-i18n="images.empty" hidden></p>
+    <p id="images-empty" class="hint" hidden></p>
   </section>
 
   <section class="card">

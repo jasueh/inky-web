@@ -104,14 +104,11 @@ function render(next) {
   $("mode-discard").disabled = !modeDirty;
   $("mode-pending").hidden = !modeDirty;
 
-  // images
+  // collections & images
   $("gallery-order").value = cfg.gallery.order;
-  $("images-empty").hidden = images.length > 0;
-  $("select-all").disabled = !images.length;
-  renderImages(cfg, images);
-  const names = new Set(images.map((i) => i.name));
-  for (const n of selected) if (!names.has(n)) selected.delete(n); // deleted elsewhere
-  updateSelection();
+  if (!["all", UNSORTED].includes(viewFilter) && !cfg.collections.some((c) => c.id === viewFilter)) viewFilter = "all";
+  renderCollections(cfg, images);
+  renderImages(cfg);
 
   // comics
   $("api-key").placeholder = cfg.comics.api_key_set ? t("comics.keySet", { hint: cfg.comics.api_key_hint }) : t("comics.keyUnset");
@@ -135,51 +132,182 @@ function render(next) {
   renderPresets(cfg.display_presets);
 }
 
-// ---------- images ----------
-// The grid is only rebuilt when something it shows changed, so polling doesn't
-// steal the focus or reload thumbnails. The selection lives outside the DOM
-// and is painted onto the tiles by updateSelection().
+// ---------- collections & images ----------
+// Collections and the grid are only rebuilt when something they show changed,
+// so polling doesn't steal the focus or reload thumbnails. The selection lives
+// outside the DOM and is painted onto the tiles by updateSelection().
 
+const UNSORTED = "unsorted"; // built-in group: images in no collection
+const SAVED_COMICS = "saved-comics";
 const selected = new Set();
 let lastPicked = null; // anchor for shift+click ranges
+let viewFilter = "all"; // all | unsorted | a collection id
+let collectionsKey = "";
 let imagesKey = "";
 
-function renderImages(cfg, images) {
-  const key = lang + JSON.stringify([images, cfg.gallery.images, cfg.mode, cfg.single_image]);
-  if (key === imagesKey) return;
-  imagesKey = key;
-  const inGallery = new Set(cfg.gallery.images);
-  $("images").replaceChildren(
-    ...images.map((img) => {
-      const tile = document.createElement("div");
-      tile.className = "tile" + (cfg.single_image === img.name && cfg.mode === "single" ? " current" : "");
-      tile.dataset.name = img.name;
-      tile.innerHTML = `
-        <label class="pick" title="${esc(t("images.select"))}"><input type="checkbox" data-act="select"></label>
-        <a href="/images/${encodeURIComponent(img.name)}" target="_blank"><img loading="lazy" src="${img.thumb}" alt=""></a>
-        <div class="meta">
-          <span class="name" title="${img.name}">${img.name}</span>
-          <label><input type="checkbox" data-act="gallery" ${inGallery.has(img.name) ? "checked" : ""}> ${esc(t("images.inGallery"))}</label>
-          <div class="actions">
-            <button type="button" data-act="show">${esc(t("images.show"))}</button>
-            <button type="button" data-act="delete" class="danger">${esc(t("images.delete"))}</button>
-          </div>
-        </div>`;
-      tile.querySelector("[data-act=select]").addEventListener("click", (e) => pick(img.name, e.target.checked, e.shiftKey));
-      tile.querySelector("[data-act=gallery]").addEventListener("change", (e) => toggleGallery(img.name, e.target.checked));
-      tile.querySelector("[data-act=show]").addEventListener("click", async () =>
-        render(await api("POST", `/api/images/${encodeURIComponent(img.name)}/show`)));
-      tile.querySelector("[data-act=delete]").addEventListener("click", async () => {
-        if (confirm(t("images.confirmDelete", { name: img.name }))) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
-      });
-      return tile;
-    })
+function unsortedImages(cfg, images) {
+  const used = new Set(cfg.collections.flatMap((c) => c.images));
+  return images.filter((i) => !used.has(i.name));
+}
+
+// What the grid shows: the chosen collection (in its own order, the one the
+// sequential gallery follows) narrowed by the file name filter.
+function visibleImages() {
+  const { config: cfg, images } = data;
+  let list = images;
+  if (viewFilter === UNSORTED) list = unsortedImages(cfg, images);
+  else if (viewFilter !== "all") {
+    const byName = new Map(images.map((i) => [i.name, i]));
+    list = cfg.collections.find((c) => c.id === viewFilter).images.map((n) => byName.get(n)).filter(Boolean);
+  }
+  const text = $("name-filter").value.trim().toLowerCase();
+  return text ? list.filter((i) => i.name.toLowerCase().includes(text)) : list;
+}
+
+function setOptions(select, entries, value) {
+  const keep = value ?? select.value;
+  select.replaceChildren(...entries.map(([v, label]) => new Option(label, v)));
+  if (entries.some(([v]) => v === keep)) select.value = keep;
+}
+
+function renderCollections(cfg, images) {
+  const existing = new Set(images.map((i) => i.name));
+  const loose = unsortedImages(cfg, images).length;
+  const key = lang + JSON.stringify([cfg.collections, cfg.unsorted_enabled, loose, images.length]);
+  if (key === collectionsKey) return;
+  collectionsKey = key;
+  const rows = cfg.collections.map((c, i) =>
+    collectionItem({
+      ...c,
+      count: c.images.filter((n) => existing.has(n)).length,
+      first: i === 0,
+      last: i === cfg.collections.length - 1,
+    }));
+  rows.push(collectionItem({ id: UNSORTED, name: t("col.unsorted"), enabled: cfg.unsorted_enabled, count: loose, builtin: true }));
+  $("collections").replaceChildren(...rows);
+
+  const named = cfg.collections.map((c) => [c.id, c.name]);
+  setOptions(
+    $("view-filter"),
+    [["all", t("images.viewAll", { n: images.length })], [UNSORTED, `${t("col.unsorted")} (${loose})`], ...named],
+    viewFilter
   );
+  setOptions($("bulk-target"), [...named, ["", t("images.newCollection")]]);
+}
+
+async function collectionCall(method, url, body) {
+  $("collection-msg").textContent = "";
+  try {
+    render(await api(method, url, body));
+    return true;
+  } catch (err) {
+    $("collection-msg").textContent = errText(err);
+    return false;
+  }
+}
+
+function collectionItem(c) {
+  const li = document.createElement("li");
+  li.classList.toggle("disabled", !c.enabled);
+  li.innerHTML = `
+    <div class="search-row">
+      <input type="checkbox" data-act="toggle">
+      <span class="search-term"></span>
+      <span class="search-summary"></span>
+      <button type="button" data-act="view"></button>
+      <button type="button" data-act="up">↑</button>
+      <button type="button" data-act="down">↓</button>
+      <button type="button" data-act="rename"></button>
+      <button type="button" data-act="remove" class="danger">×</button>
+    </div>`;
+  const el = (act) => li.querySelector(`[data-act=${act}]`);
+  const url = `/api/collections/${encodeURIComponent(c.id)}`;
+  li.querySelector(".search-term").textContent = c.name;
+  li.querySelector(".search-summary").textContent = t("col.count", { n: c.count });
+  el("toggle").checked = c.enabled;
+  el("toggle").title = t(c.enabled ? "col.disableTitle" : "col.enableTitle");
+  el("toggle").addEventListener("change", () => collectionCall("POST", url, { enabled: el("toggle").checked }));
+  el("view").textContent = t("col.view");
+  el("view").addEventListener("click", () => setView(c.id));
+  for (const act of ["up", "down", "rename", "remove"]) el(act).hidden = !!c.builtin;
+  if (c.builtin) return li;
+
+  el("up").title = t("col.up");
+  el("up").disabled = c.first;
+  el("up").addEventListener("click", () => collectionCall("POST", url, { move: "up" }));
+  el("down").title = t("col.down");
+  el("down").disabled = c.last;
+  el("down").addEventListener("click", () => collectionCall("POST", url, { move: "down" }));
+  el("rename").textContent = t("col.rename");
+  el("rename").addEventListener("click", () => {
+    const name = prompt(t("col.renamePrompt", { name: c.name }), c.name)?.trim();
+    if (name && name !== c.name) collectionCall("POST", url, { name });
+  });
+  el("remove").title = t("col.removeTitle");
+  el("remove").addEventListener("click", () => {
+    if (confirm(t("col.confirmRemove", { name: c.name, n: c.count }))) collectionCall("DELETE", url);
+  });
+  return li;
+}
+
+function setView(id) {
+  viewFilter = id;
+  $("view-filter").value = id;
+  lastPicked = null;
+  renderImages(data.config);
+}
+
+function renderImages(cfg) {
+  const list = visibleImages();
+  const names = new Set(list.map((i) => i.name));
+  for (const n of selected) if (!names.has(n)) selected.delete(n); // only what's on view stays selected
+
+  const total = data.images.length;
+  $("view-count").textContent = list.length === total ? "" : t("images.count", { n: list.length, total });
+  $("images-empty").hidden = list.length > 0;
+  $("images-empty").textContent = t(total ? "images.noMatch" : "images.empty");
+  $("select-all").disabled = !list.length;
+  const current = cfg.collections.find((c) => c.id === viewFilter);
+  $("bulk-remove").hidden = !current;
+  if (current) $("bulk-remove").textContent = t("images.removeFrom", { name: current.name });
+
+  const key = lang + JSON.stringify([list, cfg.collections, cfg.mode, cfg.single_image]);
+  if (key !== imagesKey) {
+    imagesKey = key;
+    $("images").replaceChildren(...list.map((img) => imageTile(cfg, img)));
+  }
+  updateSelection();
+}
+
+function imageTile(cfg, img) {
+  const tile = document.createElement("div");
+  tile.className = "tile" + (cfg.single_image === img.name && cfg.mode === "single" ? " current" : "");
+  tile.dataset.name = img.name;
+  const groups = cfg.collections.filter((c) => c.images.includes(img.name)).map((c) => c.name);
+  const label = groups.join(", ") || t("col.unsorted");
+  tile.innerHTML = `
+    <label class="pick" title="${esc(t("images.select"))}"><input type="checkbox" data-act="select"></label>
+    <a href="/images/${encodeURIComponent(img.name)}" target="_blank"><img loading="lazy" src="${img.thumb}" alt=""></a>
+    <div class="meta">
+      <span class="name" title="${img.name}">${img.name}</span>
+      <span class="groups${groups.length ? "" : " none"}" title="${esc(label)}">${esc(label)}</span>
+      <div class="actions">
+        <button type="button" data-act="show">${esc(t("images.show"))}</button>
+        <button type="button" data-act="delete" class="danger">${esc(t("images.delete"))}</button>
+      </div>
+    </div>`;
+  tile.querySelector("[data-act=select]").addEventListener("click", (e) => pick(img.name, e.target.checked, e.shiftKey));
+  tile.querySelector("[data-act=show]").addEventListener("click", async () =>
+    render(await api("POST", `/api/images/${encodeURIComponent(img.name)}/show`)));
+  tile.querySelector("[data-act=delete]").addEventListener("click", async () => {
+    if (confirm(t("images.confirmDelete", { name: img.name }))) render(await api("DELETE", `/api/images/${encodeURIComponent(img.name)}`));
+  });
+  return tile;
 }
 
 // With shift, everything between the last picked tile and this one follows it.
 function pick(name, on, range) {
-  const names = data.images.map((i) => i.name);
+  const names = visibleImages().map((i) => i.name);
   const from = range ? names.indexOf(lastPicked) : -1;
   const to = names.indexOf(name);
   const span = from < 0 ? [name] : names.slice(Math.min(from, to), Math.max(from, to) + 1);
@@ -194,9 +322,22 @@ function updateSelection() {
     tile.classList.toggle("selected", on);
     tile.querySelector("[data-act=select]").checked = on;
   }
-  $("select-none").disabled = !selected.size;
-  $("delete-selected").disabled = !selected.size;
+  for (const id of ["select-none", "bulk-add", "bulk-remove", "delete-selected"]) $(id).disabled = !selected.size;
   $("delete-selected").textContent = t("images.deleteSelected", { n: selected.size });
+}
+
+// Run a bulk action on the selection and report it next to the buttons.
+async function bulk(call, doneKey, name) {
+  const n = selected.size;
+  $("selection-msg").textContent = "";
+  try {
+    const next = await call([...selected]);
+    selected.clear();
+    render(next);
+    if (doneKey) $("selection-msg").textContent = t(doneKey, { n, name });
+  } catch (err) {
+    $("selection-msg").textContent = errText(err);
+  }
 }
 
 function renderPresets(presets) {
@@ -294,12 +435,6 @@ function applyPreviewRotation() {
   $("rot-reset").disabled = rotOffset === 0;
 }
 
-function toggleGallery(name, on) {
-  const set = new Set(data.config.gallery.images);
-  on ? set.add(name) : set.delete(name);
-  saveConfig({ gallery: { images: [...set] } });
-}
-
 // ---------- events ----------
 
 $("btn-refresh").addEventListener("click", async () => render(await api("POST", "/api/refresh")));
@@ -307,7 +442,8 @@ $("btn-save-current").addEventListener("click", async () => {
   $("current-msg").textContent = "";
   try {
     render(await api("POST", "/api/current/save", { last_refresh: data.state.last_refresh }));
-    $("current-msg").textContent = t("status.savedMsg");
+    const saved = data.config.collections.find((c) => c.id === SAVED_COMICS);
+    $("current-msg").textContent = t("status.savedMsg", { name: saved?.name ?? "" });
   } catch (err) {
     $("current-msg").textContent = errText(err);
   }
@@ -352,25 +488,39 @@ $("upload-form").addEventListener("submit", async (e) => {
 });
 
 $("gallery-order").addEventListener("change", () => saveConfig({ gallery: { order: $("gallery-order").value } }));
-$("gallery-all").addEventListener("click", () => saveConfig({ gallery: { images: data.images.map((i) => i.name) } }));
-$("gallery-none").addEventListener("click", () => saveConfig({ gallery: { images: [] } }));
+$("collection-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("collection-name").value.trim();
+  if (name && (await collectionCall("POST", "/api/collections", { name }))) $("collection-name").value = "";
+});
+
+$("view-filter").addEventListener("change", () => setView($("view-filter").value));
+$("name-filter").addEventListener("input", () => renderImages(data.config));
 
 $("select-all").addEventListener("click", () => {
-  for (const img of data.images) selected.add(img.name);
+  for (const img of visibleImages()) selected.add(img.name);
   updateSelection();
 });
 $("select-none").addEventListener("click", () => {
   selected.clear();
   updateSelection();
 });
-$("delete-selected").addEventListener("click", async () => {
-  if (!confirm(t("images.confirmDeleteMany", { n: selected.size }))) return;
-  $("selection-msg").textContent = "";
-  try {
-    render(await api("POST", "/api/images/delete", { names: [...selected] }));
-  } catch (err) {
-    $("selection-msg").textContent = errText(err);
+$("bulk-add").addEventListener("click", () => {
+  const id = $("bulk-target").value;
+  if (id) {
+    const name = data.config.collections.find((c) => c.id === id).name;
+    return bulk((add) => api("POST", `/api/collections/${encodeURIComponent(id)}/images`, { add }), "images.added", name);
   }
+  const name = prompt(t("col.newPrompt"))?.trim();
+  if (name) bulk((images) => api("POST", "/api/collections", { name, images }), "images.added", name);
+});
+$("bulk-remove").addEventListener("click", () => {
+  const col = data.config.collections.find((c) => c.id === viewFilter);
+  bulk((remove) => api("POST", `/api/collections/${encodeURIComponent(col.id)}/images`, { remove }), "images.removed", col.name);
+});
+$("delete-selected").addEventListener("click", () => {
+  if (confirm(t("images.confirmDeleteMany", { n: selected.size })))
+    bulk((names) => api("POST", "/api/images/delete", { names }));
 });
 
 $("save-key").addEventListener("click", async () => {
@@ -436,7 +586,7 @@ for (const b of document.querySelectorAll("[data-lang]")) {
   b.addEventListener("click", () => {
     setLang(b.dataset.lang);
     // messages from earlier actions were written in the old language
-    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg"]) $(id).textContent = "";
+    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg", "collection-msg"]) $(id).textContent = "";
     updateChosen();
     if (updateOpenPanel) updateOpenPanel();
     if (data) render(data);

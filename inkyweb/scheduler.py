@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from PIL import Image, ImageOps
 
-from . import comics, config, display
+from . import comics, config, display, library
 from .errors import UserError
 
 log = logging.getLogger(__name__)
@@ -170,9 +170,9 @@ class Scheduler:
             return self._open(name), "single", {"image": name}
 
         # gallery
-        names = [n for n in cfg["gallery"]["images"] if (config.IMAGES_DIR / n).exists()]
+        names = library.rotation(cfg)
         if not names:
-            raise UserError("gallery_empty", "The gallery is empty")
+            raise UserError("gallery_empty", "The enabled collections have no images")
         state = config.load_state()
         if cfg["gallery"]["order"] == "sequential":
             idx = state["gallery_index"] % len(names)
