@@ -10,14 +10,16 @@ There is no authentication: it is meant for use on your LAN only.
 
 **Modes**
 - **Single image:** pick an uploaded image and leave it on screen.
-- **Gallery:** rotate through the selected images, in random or sequential order.
+- **Gallery:** rotate through the images of the enabled collections, in random or sequential order (collection by collection, in the list order).
 - **Random comics:** random covers from Comic Vine (based on the `examples/spectra6/comics` example in [`pimoroni/inky`](https://github.com/pimoroni/inky)).
 - **Configurable interval** (minimum 2 minutes; a full panel refresh takes about 30–40 s). Mode and interval changes are staged behind **Apply / Discard**, so a stray click doesn't refresh the panel.
 - **No redraw on startup:** e-ink keeps its image without power, so the app resumes the rotation from the last refresh. You can turn on "Refresh when the app starts" instead.
 
 **Images**
-- Upload several at once, show, delete, and include or exclude them from the gallery.
-- **Save the comic on screen** to the gallery (the original cover, with a readable file name) or **download** whatever is on screen.
+- Upload several at once (optionally straight into a collection), show and delete.
+- **Collections:** group images by theme and tick the ones the gallery should rotate, in any combination. A collection only references images, so an image can be in several, and deleting a collection keeps its images. Images in no collection form a built-in group that can be rotated too.
+- **Multi-select:** tick images (shift+click for a range, or "Select visible") to add them to a collection, remove them from one or delete them in one go. Filter the grid by collection and by file name to find them.
+- **Save the comic on screen** to the "Comics guardados" collection (the original cover, with a readable file name) or **download** whatever is on screen.
 
 **Display**
 - **Keeps the aspect ratio:** either the whole image with borders, or filling the panel and cropping. Portrait images are rotated automatically.
@@ -133,6 +135,7 @@ In mock mode the processed image is only written to `data/current.png` (shown as
 app.py                  Flask app + JSON API
 inkyweb/config.py       persistent config.json / state.json (in data/), migrations
 inkyweb/display.py      image preparation + Inky driver (or mock)
+inkyweb/library.py      image files and the collections that group them
 inkyweb/scheduler.py    background thread: refresh / redraw according to the mode
 inkyweb/comics.py       simple and advanced comic searches, cache, jq, probing
 inkyweb/cvapi.py        Comic Vine client: call spacing, per-resource budget, curl
@@ -150,10 +153,15 @@ data/                   (not versioned) images, thumbnails, config, state, cache
 | POST | `/api/config` | Partial config update (JSON) |
 | POST | `/api/refresh` | Refresh now (next image for the current mode) |
 | POST | `/api/redraw` | Redraw the current image with the current display settings |
-| POST | `/api/images` | Upload images (`multipart`, field `files`) |
+| POST | `/api/images` | Upload images (`multipart`, field `files`; optional `collection` id) |
 | DELETE | `/api/images/<name>` | Delete an image |
+| POST | `/api/images/delete` | Delete several images (`{"names": [...]}`) |
+| POST | `/api/collections` | Create a collection (`{"name": ..., "images": [...]}`, images optional) |
+| POST | `/api/collections/<id>` | Rename, enable/disable or move it (`{"name", "enabled", "move": "up"\|"down"}`); the id `unsorted` (images in no collection) only takes `enabled` |
+| DELETE | `/api/collections/<id>` | Delete a collection (its images stay in the library) |
+| POST | `/api/collections/<id>/images` | Add / remove images (`{"add": [...], "remove": [...]}`) |
 | POST | `/api/images/<name>/show` | Switch to single-image mode with that image |
-| POST | `/api/current/save` | Save the comic cover on screen to the gallery (`{"last_refresh": ...}`) |
+| POST | `/api/current/save` | Save the comic cover on screen to the "Comics guardados" collection (`{"last_refresh": ...}`) |
 | GET | `/current/download` | Download the original of the image on screen (JPEG) |
 | POST | `/api/presets` | Save / overwrite a preset (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
 | DELETE | `/api/presets/<name>` | Delete a preset |

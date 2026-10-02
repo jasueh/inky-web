@@ -10,14 +10,16 @@ No tiene autenticación: está pensada solo para usar en tu red local.
 
 **Modos**
 - **Imagen única:** elegís una imagen subida y queda fija en la pantalla.
-- **Galería:** rota entre las imágenes marcadas, en orden aleatorio o secuencial.
+- **Galería:** rota entre las imágenes de las colecciones activas, en orden aleatorio o secuencial (colección por colección, en el orden de la lista).
 - **Cómics random:** portadas al azar desde Comic Vine (basado en el ejemplo `examples/spectra6/comics` de [`pimoroni/inky`](https://github.com/pimoroni/inky)).
 - **Frecuencia configurable** (mínimo 2 minutos; un refresco completo del panel tarda unos 30–40 s). Los cambios de modo y frecuencia pasan por **Aplicar / Descartar**, así un clic accidental no refresca el panel.
 - **No redibuja al arrancar:** la tinta e-ink conserva la imagen sin corriente, así que la app retoma la rotación desde el último refresco. Se puede activar "Refrescar al iniciar la app".
 
 **Imágenes**
-- Subir varias a la vez, mostrarlas, borrarlas e incluirlas o excluirlas de la galería.
-- **Guardar el cómic en pantalla** en la galería (la portada original, con un nombre legible) o **descargar** lo que esté en pantalla.
+- Subir varias a la vez (opcionalmente directo a una colección), mostrarlas y borrarlas.
+- **Colecciones:** agrupar imágenes por tema y tildar las que la galería tiene que rotar, en cualquier combinación. Una colección solo referencia imágenes, así que una imagen puede estar en varias, y borrar una colección no borra sus imágenes. Las imágenes sin colección forman un grupo fijo que también se puede rotar.
+- **Selección múltiple:** tildar imágenes (shift+clic para un rango, o "Seleccionar visibles") para agregarlas a una colección, quitarlas de una o borrarlas de una sola vez. La grilla se filtra por colección y por nombre de archivo para encontrarlas.
+- **Guardar el cómic en pantalla** en la colección "Comics guardados" (la portada original, con un nombre legible) o **descargar** lo que esté en pantalla.
 
 **Pantalla**
 - **Mantiene el aspect ratio:** la imagen completa con bordes, o llenando el panel y recortando. Las imágenes verticales se giran automáticamente.
@@ -133,6 +135,7 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (se ve co
 app.py                  app Flask + API JSON
 inkyweb/config.py       config.json / state.json persistentes (en data/), migraciones
 inkyweb/display.py      preparación de imagen + driver Inky (o mock)
+inkyweb/library.py      archivos de imagen y las colecciones que los agrupan
 inkyweb/scheduler.py    thread en segundo plano: refresca / redibuja según el modo
 inkyweb/comics.py       búsquedas simples y avanzadas de cómics, caché, jq, "Probar"
 inkyweb/cvapi.py        cliente de Comic Vine: espaciado de llamadas, tope por endpoint, curl
@@ -150,10 +153,15 @@ data/                   (no versionado) imágenes, miniaturas, config, estado, c
 | POST | `/api/config` | Actualización parcial de la config (JSON) |
 | POST | `/api/refresh` | Refrescar ahora (siguiente imagen según el modo) |
 | POST | `/api/redraw` | Redibujar la imagen actual con los ajustes de pantalla vigentes |
-| POST | `/api/images` | Subir imágenes (`multipart`, campo `files`) |
+| POST | `/api/images` | Subir imágenes (`multipart`, campo `files`; `collection` opcional con el id) |
 | DELETE | `/api/images/<name>` | Borrar una imagen |
+| POST | `/api/images/delete` | Borrar varias imágenes (`{"names": [...]}`) |
+| POST | `/api/collections` | Crear una colección (`{"name": ..., "images": [...]}`, imágenes opcionales) |
+| POST | `/api/collections/<id>` | Renombrarla, activarla/desactivarla o moverla (`{"name", "enabled", "move": "up"\|"down"}`); el id `unsorted` (imágenes sin colección) solo acepta `enabled` |
+| DELETE | `/api/collections/<id>` | Borrar una colección (sus imágenes quedan en la biblioteca) |
+| POST | `/api/collections/<id>/images` | Agregar / quitar imágenes (`{"add": [...], "remove": [...]}`) |
 | POST | `/api/images/<name>/show` | Pasar a modo imagen única con esa imagen |
-| POST | `/api/current/save` | Guardar la portada de cómic en pantalla en la galería (`{"last_refresh": ...}`) |
+| POST | `/api/current/save` | Guardar la portada de cómic en pantalla en la colección "Comics guardados" (`{"last_refresh": ...}`) |
 | GET | `/current/download` | Descargar el original de la imagen en pantalla (JPEG) |
 | POST | `/api/presets` | Guardar / sobrescribir un perfil (`{"name": ..., "values": {color, contrast, brightness, saturation}}`) |
 | DELETE | `/api/presets/<name>` | Borrar un perfil |
