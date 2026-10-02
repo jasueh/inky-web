@@ -26,6 +26,7 @@ There is no authentication: it is meant for use on your LAN only.
 
 **Display**
 - **Keeps the aspect ratio:** either the whole image with borders, or filling the panel and cropping. Portrait images are rotated automatically.
+- **Margins for a frame's mat:** top, bottom, left and right, in mm or px, measured as the frame hangs (portrait or landscape). The image is drawn inside them and the rest takes the border colour. Newspaper PDFs are rendered at the size left inside the margins.
 - **Colour, contrast, brightness and Inky palette saturation.** The defaults are neutral (1.0 / 1.0 / 1.0, palette 0.5), the same as the Pimoroni examples, with a "Pimoroni values" button to go back to them.
 - **Apply redraws the image currently on screen** with the new values, so you can compare settings. It doesn't move the rotation schedule.
 - **Presets:** save colour / contrast / brightness / palette combinations under a name and load them back.

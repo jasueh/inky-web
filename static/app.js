@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const SLIDERS = ["color", "contrast", "brightness", "saturation"];
+const SIDES = ["top", "right", "bottom", "left"];
 
 let data = null;
 let modeDirty = false;
@@ -138,7 +139,11 @@ function render(next) {
     $("border").value = cfg.display.border;
     $("auto-rotate").checked = cfg.display.auto_rotate;
     for (const key of SLIDERS) $(key).value = cfg.display[key];
+    $("mount").value = cfg.display.mount;
+    setMarginUnit(cfg.display.margin_unit);
+    for (const side of SIDES) $(`margin-${side}`).value = cfg.display[`margin_${side}`];
   }
+  $("margins-hint").textContent = t("display.marginsHint", { ppm: data.px_per_mm.toFixed(1) });
   for (const key of SLIDERS) $(key).nextElementSibling.textContent = Number($(key).value).toFixed(2);
   setDisplayButtons();
   renderPresets(cfg.display_presets);
@@ -413,7 +418,9 @@ function renderPresets(presets) {
 
 // Put values into the display form as a pending change (still needs Aplicar).
 function loadIntoForm(values) {
-  for (const id of ["fit", "border"]) if (id in values) $(id).value = values[id];
+  for (const id of ["fit", "border", "mount"]) if (id in values) $(id).value = values[id];
+  if ("margin_unit" in values) setMarginUnit(values.margin_unit);
+  for (const side of SIDES) if (`margin_${side}` in values) $(`margin-${side}`).value = values[`margin_${side}`];
   if ("auto_rotate" in values) $("auto-rotate").checked = values.auto_rotate;
   for (const key of SLIDERS) {
     if (!(key in values)) continue;
@@ -426,8 +433,32 @@ function loadIntoForm(values) {
 function readDisplayForm() {
   const d = { fit: $("fit").value, border: $("border").value, auto_rotate: $("auto-rotate").checked };
   for (const key of SLIDERS) d[key] = Number($(key).value);
+  d.mount = $("mount").value;
+  d.margin_unit = $("margin-unit").value;
+  for (const side of SIDES) d[`margin_${side}`] = Math.max(0, Number($(`margin-${side}`).value) || 0);
   return d;
 }
+
+// The margin inputs show the unit they are in; switching unit converts them.
+let marginUnit = "mm";
+
+function setMarginUnit(unit) {
+  marginUnit = unit;
+  $("margin-unit").value = unit;
+  for (const side of SIDES) $(`margin-${side}`).step = unit === "mm" ? "0.5" : "1";
+}
+
+$("margin-unit").addEventListener("change", () => {
+  const ppm = data.px_per_mm;
+  const to = $("margin-unit").value;
+  for (const side of SIDES) {
+    const el = $(`margin-${side}`);
+    const v = Number(el.value) || 0;
+    el.value = to === "mm" ? Math.round((v / ppm) * 2) / 2 : Math.round(v * ppm);
+  }
+  setMarginUnit(to);
+  markDisplayDirty();
+});
 
 function markDisplayDirty() {
   const form = readDisplayForm();
@@ -586,7 +617,8 @@ $("query-form").addEventListener("submit", (e) => {
   $("query-input").value = "";
 });
 
-for (const id of ["fit", "border", "auto-rotate"]) $(id).addEventListener("change", markDisplayDirty);
+for (const id of ["fit", "border", "auto-rotate", "mount"]) $(id).addEventListener("change", markDisplayDirty);
+for (const side of SIDES) $(`margin-${side}`).addEventListener("input", markDisplayDirty);
 for (const key of SLIDERS) {
   const el = $(key);
   el.addEventListener("input", () => {
@@ -605,7 +637,9 @@ $("display-discard").addEventListener("click", () => {
   displayDirty = false;
   render(data);
 });
-$("display-defaults").addEventListener("click", () => loadIntoForm(data.display_defaults));
+// The defaults are about the image; the margins and mount belong to the frame.
+$("display-defaults").addEventListener("click", () =>
+  loadIntoForm(Object.fromEntries(Object.entries(data.display_defaults).filter(([k]) => k !== "mount" && !k.startsWith("margin_")))));
 
 $("preset-form").addEventListener("submit", async (e) => {
   e.preventDefault();

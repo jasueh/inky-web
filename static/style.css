@@ -168,6 +168,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .probe-table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 .probe-table th, .probe-table td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border); }
 .probe-table th { color: var(--muted); font-weight: 500; }
+.margins input[type=number] { width: 80px; }
 .probe-out img { max-height: 320px; max-width: 100%; display: block; margin-top: 6px; border: 1px solid var(--border); }
 .probe-out pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8rem; background: var(--bg); padding: 8px; border-radius: 6px; }
 .jq-row { display: grid; gap: 4px; margin: 10px 0 4px; }

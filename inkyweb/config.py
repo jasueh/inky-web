@@ -49,6 +49,12 @@ DEFAULT_CONFIG = {
         "fit": "contain",  # contain (letterbox) | fit (crop)
         "auto_rotate": True,
         "border": "white",  # white | black
+        "mount": "landscape",  # landscape | portrait: how the panel hangs
+        "margin_unit": "mm",  # mm | px
+        "margin_top": 0,  # room for a frame's mat, as seen on the wall
+        "margin_right": 0,
+        "margin_bottom": 0,
+        "margin_left": 0,
         "color": 1.0,  # neutral: same as the Pimoroni examples (no enhancement)
         "contrast": 1.0,
         "brightness": 1.0,

@@ -26,6 +26,7 @@ No tiene autenticación: está pensada solo para usar en tu red local.
 
 **Pantalla**
 - **Mantiene el aspect ratio:** la imagen completa con bordes, o llenando el panel y recortando. Las imágenes verticales se giran automáticamente.
+- **Márgenes para el passepartout:** arriba, abajo, izquierda y derecha, en mm o px, medidos como cuelga el cuadro (vertical u horizontal). La imagen se dibuja adentro y el resto queda del color de borde. Los PDF de los diarios se convierten al tamaño que queda dentro de los márgenes.
 - **Color, contraste, brillo y saturación de la paleta Inky.** Los valores por defecto son neutros (1.0 / 1.0 / 1.0, paleta 0.5), iguales a los ejemplos de Pimoroni, y hay un botón "Valores de Pimoroni" para volver a ellos.
 - **Aplicar redibuja la imagen que está en pantalla** con los valores nuevos, para comparar ajustes. No cambia el horario de rotación.
 - **Perfiles:** guardar combinaciones de color / contraste / brillo / paleta con un nombre y volver a cargarlas.

@@ -168,6 +168,7 @@ def status():
         },
         buttons={"actions": buttons.ACTIONS, "available": buttons.available},
         resolution=display.resolution(),
+        px_per_mm=display.px_per_mm(),
         min_interval=config.MIN_INTERVAL_MINUTES,
     )
 
@@ -233,6 +234,13 @@ def update_config():
             cd["border"] = d["border"]
         if "auto_rotate" in d:
             cd["auto_rotate"] = bool(d["auto_rotate"])
+        if d.get("mount") in display.MOUNTS:
+            cd["mount"] = d["mount"]
+        if d.get("margin_unit") in display.UNITS:
+            cd["margin_unit"] = d["margin_unit"]
+        for side in display.SIDES:
+            if f"margin_{side}" in d:
+                cd[f"margin_{side}"] = clamp(d[f"margin_{side}"], 0, display.MARGIN_MAX)
         for key, (lo, hi) in config.ADJUSTMENTS.items():
             if key in d:
                 cd[key] = clamp(d[key], lo, hi)

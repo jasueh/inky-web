@@ -198,13 +198,14 @@ def _valid(path):
 
 
 def _render_pdf(data, out):
-    """First page of a PDF as a PNG whose long side matches the panel's.
+    """First page of a PDF as a PNG whose long side matches the panel's
+    (the part of it inside the margins).
 
     Runs like jq does: empty environment, temporary directory, timeout.
     """
     with tempfile.TemporaryDirectory() as tmp:
         (Path(tmp) / "page.pdf").write_bytes(data)
-        size = str(max(display.resolution()))
+        size = str(max(display.usable_size(config.load_config()["display"])))
         try:
             p = subprocess.run(
                 ["pdftoppm", "-f", "1", "-l", "1", "-scale-to", size, "-png", "-singlefile", "page.pdf", "page"],
