@@ -12,10 +12,11 @@ There is no authentication: it is meant for use on your LAN only.
 - **Single image:** pick an uploaded image and leave it on screen.
 - **Gallery:** rotate through the images of the enabled collections, in random or sequential order (collection by collection, in the list order).
 - **Random comics:** random covers from Comic Vine (based on the `examples/spectra6/comics` example in [`pimoroni/inky`](https://github.com/pimoroni/inky)).
+- **Newspapers:** today's front page of the newspapers you pick, rotated in list order. Sources: [Freedom Forum](https://frontpages.freedomforum.org/) (PDF rendered at the panel's size) and [kiosko.net](https://en.kiosko.net/) (JPEG). Neither is an official API, so they may stop working if their URLs change. A paper without a front page in the last 7 days is skipped.
 - **Configurable interval** (minimum 2 minutes; a full panel refresh takes about 30–40 s). Mode and interval changes are staged behind **Apply / Discard**, so a stray click doesn't refresh the panel.
 - **No redraw on startup:** e-ink keeps its image without power, so the app resumes the rotation from the last refresh. You can turn on "Refresh when the app starts" instead.
 - **Pause:** keep the current image on screen until you resume the rotation.
-- **Display buttons:** the four buttons of the Inky Impression (A–D) each run a configurable action: refresh now, switch to Gallery or Comics, pause/resume, or nothing. Presses while the panel is updating are ignored, never queued. Each one can be tried from the web UI.
+- **Display buttons:** the four buttons of the Inky Impression (A–D) each run a configurable action: refresh now, switch to Gallery, Comics or Newspapers, pause/resume, or nothing. Presses while the panel is updating are ignored, never queued. Each one can be tried from the web UI.
 
 **Images**
 - Upload several at once (optionally straight into a collection), show and delete.
@@ -51,6 +52,7 @@ There is no authentication: it is meant for use on your LAN only.
 - Raspberry Pi with the Inky Impression 13.3", and Pimoroni's venv with the `inky` library installed (their installer creates `~/.virtualenvs/pimoroni`).
 - A free Comic Vine API key, only for comics mode: https://comicvine.gamespot.com/api/
 - `jq` (`sudo apt install jq`), only for jq expressions in advanced searches.
+- `pdftoppm` (`sudo apt install poppler-utils`), only for newspapers mode: without it, Freedom Forum front pages fall back to a 700 px wide JPEG.
 
 ## Installation on the Pi
 
@@ -140,6 +142,7 @@ inkyweb/display.py      image preparation + Inky driver (or mock)
 inkyweb/library.py      image files and the collections that group them
 inkyweb/scheduler.py    background thread: refresh / redraw according to the mode
 inkyweb/buttons.py      the display's A–D buttons (GPIO) and their actions
+inkyweb/newspapers.py   newspaper front pages: source catalogs, download, PDF rendering, cache
 inkyweb/comics.py       simple and advanced comic searches, cache, jq, probing
 inkyweb/cvapi.py        Comic Vine client: call spacing, per-resource budget, curl
 inkyweb/errors.py       coded errors that the UI translates
@@ -173,6 +176,9 @@ data/                   (not versioned) images, thumbnails, config, state, cache
 | POST | `/api/comics/probe` | Test an advanced search (`{"search": {...}, "dry_run": true}` only reports how many calls it would make) |
 | POST | `/api/comics/sequence/reset` | Restart a search's sequential picking from #1 (`{"id": ...}`) |
 | POST | `/api/comics/cache/clear` | Clear a search's cache (`{"search": {...}}`) |
+| GET | `/api/newspapers/catalog` | Countries of a source (`?source=kiosko\|ff`), or its newspapers in one (`&country=...`); `&refresh=1` reads the source again |
+| POST | `/api/newspapers/probe` | Fetch a newspaper's latest front page into the cache and describe it (`{"source": ..., "paper": ...}`) |
+| GET | `/newspapers/cover/<file>` | A cached front page (the `file` returned by the probe) |
 
 API errors are returned as `{"error": {"code": ..., "params": {...}, "message": ...}}`. The UI translates `code` (see `static/i18n.js`) and falls back to `message` (English).
 
@@ -180,5 +186,6 @@ API errors are returned as `{"error": {"code": ..., "params": {...}, "message": 
 
 - The code is released under the [MIT License](LICENSE) © 2026 jasueh.
 - `inkyweb/comics.py` is adapted from the Comic Vine example in [pimoroni/inky](https://github.com/pimoroni/inky) (MIT, © Pimoroni Ltd.). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- The newspapers mode is inspired by the newspaper plugin of [fatihak/InkyPi](https://github.com/fatihak/InkyPi); no code was taken from it.
 - Comic data and cover images come from the [Comic Vine API](https://comicvine.gamespot.com/api/) at runtime, using your own API key. They are not included in this repository and belong to their respective owners. The Comic Vine API is for non-commercial use only.
 - This project is not affiliated with or endorsed by Pimoroni, Comic Vine or Fandom.

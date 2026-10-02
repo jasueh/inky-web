@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
-from inkyweb import buttons, comics, config, cvapi, display, library
+from inkyweb import buttons, comics, config, cvapi, display, library, newspapers
 from inkyweb.errors import UserError
 from inkyweb.scheduler import Scheduler
 
@@ -103,6 +103,8 @@ def current_basename(state):
     detail = state.get("last_detail") or {}
     if state.get("last_source") == "comics":
         base = f"{detail.get('volume', 'comic')} {detail.get('issue_number') or ''}"
+    elif state.get("last_source") == "newspapers":
+        base = f"{detail.get('paper', 'newspaper')} {detail.get('date') or ''}"
     else:
         base = Path(detail.get("image") or "inky").stem
     return secure_filename(base.strip()) or "inky"
@@ -159,6 +161,11 @@ def status():
             "api_usage": cvapi.usage(),
             "official_limit": cvapi.OFFICIAL_LIMIT,
         },
+        newspapers_meta={
+            "sources": newspapers.SOURCES,
+            "pdf_available": newspapers.pdf_available(),
+            "days_back": newspapers.DAYS_BACK,
+        },
         buttons={"actions": buttons.ACTIONS, "available": buttons.available},
         resolution=display.resolution(),
         min_interval=config.MIN_INTERVAL_MINUTES,
@@ -212,6 +219,11 @@ def update_config():
             cfg["comics"]["random_volume"] = bool(c["random_volume"])
         if c.get("api_key"):  # empty = keep current key
             cfg["comics"]["api_key"] = c["api_key"].strip()
+
+    if "newspapers" in data:
+        n = data["newspapers"]
+        if "papers" in n:
+            cfg["newspapers"]["papers"] = [newspapers.normalize_paper(item) for item in n["papers"]]
 
     if "display" in data:
         d, cd = data["display"], cfg["display"]
@@ -288,6 +300,28 @@ def clear_search_cache():
     body = request.get_json(force=True) or {}
     comics.clear_cache(comics.normalize_search(body.get("search") or {}))
     return jsonify(ok=True)
+
+
+@app.get("/api/newspapers/catalog")
+def newspaper_catalog():
+    """Countries of a source, or with ?country= the newspapers it has there."""
+    source = request.args.get("source", "")
+    refresh = request.args.get("refresh") == "1"
+    country = request.args.get("country")
+    if country:
+        return jsonify(papers=newspapers.papers(source, country, refresh))
+    return jsonify(countries=newspapers.countries(source, refresh))
+
+
+@app.post("/api/newspapers/probe")
+def probe_newspaper():
+    """Fetch a newspaper's latest front page into the cache and describe it."""
+    return jsonify(newspapers.probe(request.get_json(force=True) or {}))
+
+
+@app.get("/newspapers/cover/<name>")
+def newspaper_cover(name):
+    return send_from_directory(newspapers.CACHE_DIR, name, max_age=0)
 
 
 @app.post("/api/refresh")

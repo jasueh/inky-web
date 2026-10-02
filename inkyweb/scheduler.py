@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from PIL import Image, ImageOps
 
-from . import comics, config, display, library
+from . import comics, config, display, library, newspapers
 from .errors import UserError
 
 log = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class Scheduler:
         interval change or a redraw doesn't move or re-trigger the rotation."""
         if from_now or self._base is None:
             self._base = time.time()
-        rotating = cfg["mode"] in ("gallery", "comics") and not cfg["paused"]
+        rotating = cfg["mode"] != "single" and not cfg["paused"]
         self._next_at = self._base + self._interval(cfg) if rotating else None
         config.update_state(next_refresh=_iso(self._next_at) if self._next_at else None)
 
@@ -167,6 +167,10 @@ class Scheduler:
         if mode == "comics":
             img, detail = comics.fetch_random_cover(cfg["comics"])
             return img, "comics", detail
+
+        if mode == "newspapers":
+            img, detail = newspapers.fetch_next(cfg["newspapers"])
+            return img, "newspapers", detail
 
         if mode == "single":
             name = cfg.get("single_image")

@@ -15,8 +15,8 @@ from . import config, display
 log = logging.getLogger(__name__)
 
 LABELS = ("A", "B", "C", "D")
-# none | refresh (next image) | gallery / comics (switch mode) | pause (toggle the rotation)
-ACTIONS = ("none", "refresh", "gallery", "comics", "pause")
+# none | refresh (next image) | gallery / comics / newspapers (switch mode) | pause (toggle the rotation)
+ACTIONS = ("none", "refresh", "gallery", "comics", "newspapers", "pause")
 DEBOUNCE_SECONDS = 0.5
 
 available = False  # True once the GPIO lines are being watched

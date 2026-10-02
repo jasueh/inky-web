@@ -54,6 +54,7 @@
       <label><input type="radio" name="mode" value="single"> <span data-i18n="mode.single"></span></label>
       <label><input type="radio" name="mode" value="gallery"> <span data-i18n="mode.gallery"></span></label>
       <label><input type="radio" name="mode" value="comics"> <span data-i18n="mode.comics"></span></label>
+      <label><input type="radio" name="mode" value="newspapers"> <span data-i18n="mode.newspapers"></span></label>
     </div>
     <label class="row">
       <span data-i18n="mode.every"></span>
@@ -148,6 +149,24 @@
       <input type="text" id="query-input" data-i18n-placeholder="comics.queryPlaceholder">
       <button type="submit" data-i18n="comics.add"></button>
     </form>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="news.title"></h2>
+    <p class="hint" data-i18n="news.hint"></p>
+    <p id="news-nopdf" class="hint" data-i18n="news.noPdf" hidden></p>
+    <ul id="newspapers" class="searches"></ul>
+    <p id="news-empty" class="hint" data-i18n="news.empty" hidden></p>
+    <div id="news-probe" class="probe-out" hidden></div>
+    <h3 data-i18n="news.addTitle"></h3>
+    <form id="news-form" class="row">
+      <select id="news-source"></select>
+      <select id="news-country"></select>
+      <select id="news-paper"></select>
+      <button type="submit" id="news-add" data-i18n="comics.add" disabled></button>
+      <button type="button" id="news-reload" data-i18n="news.reload" data-i18n-title="news.reloadTitle"></button>
+    </form>
+    <small id="news-msg"></small>
   </section>
 
   <template id="search-panel-tpl">

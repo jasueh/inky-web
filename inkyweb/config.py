@@ -18,13 +18,13 @@ SOURCE_FILE = DATA_DIR / "current_source.png"  # original of what's on screen
 # A full refresh of the Spectra 6 panel takes ~30-40s; keep a safe margin.
 MIN_INTERVAL_MINUTES = 2
 
-MODES = ("single", "gallery", "comics")
+MODES = ("single", "gallery", "comics", "newspapers")
 
 DEFAULT_CONFIG = {
     "mode": "single",
     "interval_minutes": 60,
     "refresh_on_start": False,  # e-ink keeps its image; don't redraw on app start
-    "paused": False,  # keep the current image: gallery / comics don't rotate
+    "paused": False,  # keep the current image: gallery / comics / newspapers don't rotate
     # Action of each Inky Impression button; see buttons.ACTIONS
     "buttons": {"A": "refresh", "B": "gallery", "C": "comics", "D": "pause"},
     "single_image": None,
@@ -40,6 +40,10 @@ DEFAULT_CONFIG = {
         "searches": [{"id": "00000001", "term": "Weird Science"}],
         "random_volume": False,  # simple searches: pick among the top 5 volumes
         "rate_limit_per_hour": 150,  # own budget per Comic Vine resource (official: 200)
+    },
+    "newspapers": {
+        # Rotated in list order: [{"id", "source", "paper", "name", "enabled"}]
+        "papers": [],
     },
     "display": {
         "fit": "contain",  # contain (letterbox) | fit (crop)
@@ -60,6 +64,7 @@ PRESET_NAME_MAX = 40
 
 DEFAULT_STATE = {
     "gallery_index": 0,
+    "newspaper_index": 0,
     "last_refresh": None,
     "rendered_at": None,  # last time the panel was drawn (refresh or redraw)
     "next_refresh": None,

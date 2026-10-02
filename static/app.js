@@ -58,6 +58,10 @@ function describe(state) {
     const title = esc(`${d.volume} #${d.issue_number ?? "?"}`) + (d.publisher ? ` · ${esc(d.publisher)}` : "");
     return d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${title}</a> (${esc(d.query)})` : title;
   }
+  if (state.last_source === "newspapers") {
+    const title = esc(`${d.paper} · ${d.date}`);
+    return d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${title}</a>` : title;
+  }
   return esc(d.image);
 }
 
@@ -124,6 +128,7 @@ function render(next) {
   renderSearches(cfg);
   if (updateOpenPanel) updateOpenPanel();
 
+  renderNewspapers(cfg);
   renderButtons(cfg);
 
   // display: staged until "Aplicar", like the mode section
@@ -628,8 +633,10 @@ for (const b of document.querySelectorAll("[data-lang]")) {
   b.addEventListener("click", () => {
     setLang(b.dataset.lang);
     // messages from earlier actions were written in the old language
-    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg", "collection-msg", "buttons-msg"]) $(id).textContent = "";
+    for (const id of ["current-msg", "upload-msg", "preset-msg", "selection-msg", "collection-msg", "buttons-msg", "news-msg"]) $(id).textContent = "";
+    $("news-probe").hidden = true;
     updateChosen();
+    fillNewsSources();
     if (updateOpenPanel) updateOpenPanel();
     if (data) render(data);
   });
@@ -930,6 +937,144 @@ function showProbe(out, r) {
 $("rate-limit").addEventListener("change", () =>
   saveConfig({ comics: { rate_limit_per_hour: Number($("rate-limit").value) } }));
 
+// ---------- newspapers ----------
+// The list rotates in order. The pickers below it are filled from the server,
+// which caches each source's list of countries and newspapers.
+
+let newsKey = "";
+
+const saveNewspapers = (papers) => saveConfig({ newspapers: { papers } });
+
+function renderNewspapers(cfg) {
+  $("news-nopdf").hidden = data.newspapers_meta.pdf_available;
+  const papers = cfg.newspapers.papers;
+  $("news-empty").hidden = papers.length > 0;
+  const key = lang + JSON.stringify(papers);
+  if (key === newsKey) return;
+  newsKey = key;
+  $("newspapers").replaceChildren(...papers.map((p, i) => newspaperItem(p, i, papers.length)));
+}
+
+function newspaperItem(p, i, total) {
+  const li = document.createElement("li");
+  li.classList.toggle("disabled", !p.enabled);
+  li.innerHTML = `
+    <div class="search-row">
+      <input type="checkbox" data-act="toggle">
+      <span class="search-term"></span>
+      <span class="search-summary"></span>
+      <button type="button" data-act="up">↑</button>
+      <button type="button" data-act="down">↓</button>
+      <button type="button" data-act="probe"></button>
+      <button type="button" data-act="remove" class="danger">×</button>
+    </div>`;
+  const el = (act) => li.querySelector(`[data-act=${act}]`);
+  const others = () => data.config.newspapers.papers;
+  li.querySelector(".search-term").textContent = p.name;
+  li.querySelector(".search-summary").textContent = `${t(`news.source.${p.source}`)} · ${p.paper}`;
+  el("toggle").checked = p.enabled;
+  el("toggle").title = t(p.enabled ? "adv.disableTitle" : "adv.enableTitle");
+  el("toggle").addEventListener("change", () =>
+    saveNewspapers(others().map((x) => (x.id === p.id ? { ...x, enabled: el("toggle").checked } : x))));
+  const move = (delta) => {
+    const list = [...others()];
+    const from = list.findIndex((x) => x.id === p.id);
+    list.splice(from + delta, 0, list.splice(from, 1)[0]);
+    saveNewspapers(list);
+  };
+  el("up").title = t("col.up");
+  el("up").disabled = i === 0;
+  el("up").addEventListener("click", () => move(-1));
+  el("down").title = t("col.down");
+  el("down").disabled = i === total - 1;
+  el("down").addEventListener("click", () => move(1));
+  el("probe").textContent = t("news.probe");
+  el("probe").addEventListener("click", () => probeNewspaper(p));
+  el("remove").title = t("comics.remove");
+  el("remove").addEventListener("click", () => saveNewspapers(others().filter((x) => x.id !== p.id)));
+  return li;
+}
+
+async function probeNewspaper(p) {
+  const out = $("news-probe");
+  out.hidden = true;
+  $("news-msg").textContent = t("news.probing", { name: p.name });
+  try {
+    const r = await api("POST", "/api/newspapers/probe", p);
+    $("news-msg").textContent = "";
+    const text = document.createElement("p");
+    text.textContent = t("news.probeResult", { ...r, name: p.name, kind: r.kind.toUpperCase() }) +
+      " · " + t(r.cached ? "news.fromCache" : "news.downloaded");
+    const link = document.createElement("a");
+    link.href = `/newspapers/cover/${encodeURIComponent(r.file)}`;
+    link.target = "_blank";
+    const img = document.createElement("img");
+    img.src = link.href;
+    img.alt = p.name;
+    link.append(img);
+    out.replaceChildren(text, link);
+    out.hidden = false;
+  } catch (err) {
+    $("news-msg").textContent = errText(err);
+  }
+}
+
+function fillNewsSources() {
+  if (!data) return;
+  setOptions($("news-source"), data.newspapers_meta.sources.map((s) => [s, t(`news.source.${s}`)]));
+}
+
+// Fill a picker from the catalog; the first option is a placeholder.
+async function loadNews(select, placeholderKey, query, toOption) {
+  setOptions(select, [["", t("news.loading")]]);
+  $("news-add").disabled = true;
+  $("news-msg").textContent = "";
+  try {
+    const res = await api("GET", `/api/newspapers/catalog?${new URLSearchParams(query)}`);
+    setOptions(select, [["", t(placeholderKey)], ...(res.countries || res.papers).map(toOption)]);
+  } catch (err) {
+    setOptions(select, [["", t(placeholderKey)]]);
+    $("news-msg").textContent = errText(err);
+  }
+}
+
+function loadNewsCountries(refresh) {
+  setOptions($("news-paper"), [["", t("news.pickPaper")]]);
+  return loadNews($("news-country"), "news.pickCountry", { source: $("news-source").value, ...(refresh && { refresh: 1 }) },
+    (c) => [c.code, c.name]);
+}
+
+function loadNewsPapers(refresh) {
+  const country = $("news-country").value;
+  if (!country) return setOptions($("news-paper"), [["", t("news.pickPaper")]]);
+  return loadNews($("news-paper"), "news.pickPaper", { source: $("news-source").value, country, ...(refresh && { refresh: 1 }) },
+    (p) => [p.paper, p.city ? `${p.name} (${p.city})` : p.name]);
+}
+
+$("news-source").addEventListener("change", () => loadNewsCountries());
+$("news-country").addEventListener("change", () => loadNewsPapers());
+$("news-paper").addEventListener("change", () => ($("news-add").disabled = !$("news-paper").value));
+$("news-reload").addEventListener("click", async () => {
+  const country = $("news-country").value;
+  if (!country) return loadNewsCountries(true);
+  await loadNewsPapers(true);
+});
+$("news-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const select = $("news-paper");
+  if (!select.value) return;
+  const source = $("news-source").value;
+  const papers = data.config.newspapers.papers;
+  if (papers.some((p) => p.source === source && p.paper === select.value)) {
+    $("news-msg").textContent = t("news.already");
+    return;
+  }
+  const name = select.selectedOptions[0].textContent.replace(/ \([^)]*\)$/, "");
+  saveNewspapers([...papers, { source, paper: select.value, name }]);
+  select.value = "";
+  $("news-add").disabled = true;
+});
+
 // ---------- polling ----------
 
 async function poll() {
@@ -939,5 +1084,10 @@ async function poll() {
     console.error(err);
   }
 }
-poll();
+poll().then(() => {
+  fillNewsSources();
+  setOptions($("news-country"), [["", t("news.pickCountry")]]);
+  setOptions($("news-paper"), [["", t("news.pickPaper")]]);
+  if (data) loadNewsCountries();
+});
 setInterval(poll, 5000);
