@@ -130,7 +130,6 @@ In mock mode the processed image is only written to `data/current.png` (shown as
 | `INKY_WEB_HOST` | `0.0.0.0` | Listen address |
 | `INKY_WEB_DATA` | `./data` | Folder for images, config, state and cache |
 | `INKY_MOCK` | — | `1` to run without a display |
-| `INKY_WEB_BUTTON_PINS` | `5,6,16,24` (`5,6,25,24` on the 13.3") | BCM GPIO numbers of buttons A–D |
 
 ## Project structure
 

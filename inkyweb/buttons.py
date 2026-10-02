@@ -23,11 +23,8 @@ available = False  # True once the GPIO lines are being watched
 
 
 def pins():
-    """BCM GPIO numbers for A-D. INKY_WEB_BUTTON_PINS (e.g. "5,6,16,24") overrides."""
-    env = os.environ.get("INKY_WEB_BUTTON_PINS")
-    if env:
-        return [int(p) for p in env.split(",")]
-    # As in Pimoroni's examples/spectra6/buttons.py: C is GPIO 25 on the 13.3".
+    """BCM GPIO numbers for A-D. They are fixed by the board; only C differs
+    between models (Pimoroni's examples/spectra6/buttons.py): 25 on the 13.3"."""
     return [5, 6, 25 if display.resolution() == (1600, 1200) else 16, 24]
 
 

@@ -130,7 +130,6 @@ En modo mock la imagen procesada solo se escribe en `data/current.png` (se ve co
 | `INKY_WEB_HOST` | `0.0.0.0` | Interfaz de escucha |
 | `INKY_WEB_DATA` | `./data` | Carpeta de imágenes, config, estado y caché |
 | `INKY_MOCK` | — | `1` para correr sin pantalla |
-| `INKY_WEB_BUTTON_PINS` | `5,6,16,24` (`5,6,25,24` en la 13.3") | Números GPIO (BCM) de los botones A–D |
 
 ## Estructura del proyecto
 
