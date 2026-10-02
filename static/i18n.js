@@ -6,6 +6,7 @@ const I18N = {
   es: {
     "lang.title": "Idioma",
     "header.busy": "Actualizando pantalla…",
+    "header.paused": "En pausa",
 
     "status.title": "En pantalla",
     "status.previewAlt": "Vista previa de la pantalla",
@@ -263,6 +264,7 @@ const I18N = {
   en: {
     "lang.title": "Language",
     "header.busy": "Updating display…",
+    "header.paused": "Paused",
 
     "status.title": "On screen",
     "status.previewAlt": "Display preview",

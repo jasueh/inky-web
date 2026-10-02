@@ -69,12 +69,14 @@ function render(next) {
   $("busy").hidden = !state.busy;
   $("btn-refresh").disabled = state.busy;
   const rotates = cfg.mode !== "single";
-  $("st-mode").textContent = t(`mode.${cfg.mode}`) + (cfg.paused && rotates ? ` · ${t("status.paused")}` : "");
+  const paused = cfg.paused && rotates;
+  $("paused").hidden = !paused;
+  $("st-mode").textContent = t(`mode.${cfg.mode}`) + (paused ? ` · ${t("status.paused")}` : "");
   $("btn-pause").hidden = !rotates;
   $("btn-pause").textContent = t(cfg.paused ? "status.resume" : "status.pause");
   $("st-detail").innerHTML = describe(state);
   $("st-last").textContent = fmtTime(state.last_refresh);
-  $("st-next").textContent = state.next_refresh ? fmtTime(state.next_refresh) : "—";
+  $("st-next").textContent = paused ? t("status.paused") : state.next_refresh ? fmtTime(state.next_refresh) : "—";
   $("st-res").textContent = data.resolution.join("×");
   $("st-error").hidden = !state.last_error;
   $("st-error").textContent = lastErrorText(state.last_error);
